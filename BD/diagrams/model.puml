@@ -1,12 +1,6 @@
 @startuml
-!option handwritten true
-skinparam monochrome true
-skinparam class {
-  BorderColor black
-  ArrowColor black
-}
-hide methods
-hide stereotypes
+skinparam linetype ortho
+skinparam roundCorner 5
 
 entity "User" {
   * id : serial <<PK>>
@@ -99,9 +93,6 @@ entity "ProductImage" {
   * product_id : integer <<FK>>
   * image : varchar
   * alt_text : varchar(255)
-  * is_main : boolean
-  * display_order : integer
-  * created_at : timestamp
 }
 
 entity "ProductReview" {
@@ -148,22 +139,22 @@ entity "Wishlist" {
   * added_at : timestamp
 }
 
-User ||--o{ UserRole
-Role ||--o{ UserRole
-User ||--|| UserTimezone
-User ||--o{ UserNote
-User ||--o{ LogEntry
-User ||--o{ ProductReview
-User ||--o{ Order
-User ||--o{ Wishlist
-User ||--o{ UserRole : assigned_by
+User "1" -- "0..*" UserRole : "has"
+Role "1" -- "0..*" UserRole : "assigns"
+User "1" -- "1" UserTimezone : "has timezone"
+User "1" -- "0..*" UserNote : "writes"
+User "1" -- "0..*" LogEntry : "creates"
+User "1" -- "0..*" ProductReview : "writes"
+User "1" -- "0..*" Order : "places"
+User "1" -- "0..*" Wishlist : "adds to"
+User "1" -- "0..*" UserRole : "assigned_by"
 
-Category ||--o{ Product
-Product ||--o{ ProductImage
-Product ||--o{ ProductReview
-Product ||--o{ OrderItem
-Product ||--o{ Wishlist
+Category "1" -- "0..*" Product : "has"
+Product "1" -- "0..*" ProductImage : "has images"
+Product "1" -- "0..*" ProductReview : "has reviews"
+Product "1" -- "0..*" OrderItem : "is part of"
+Product "1" -- "0..*" Wishlist : "is in"
 
-Order ||--o{ OrderItem
+Order "1" -- "0..*" OrderItem : "contains"
 
 @enduml
