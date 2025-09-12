@@ -81,9 +81,9 @@ WSGI_APPLICATION = 'shop.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'heavyshop',
-        'USER': 'heavyshop',
-        'PASSWORD' : 'heavyshop',
+        'NAME': 'bdshop',
+        'USER': 'bdshop',
+        'PASSWORD' : 'bdshop',
         'HOST' : 'localhost',
         'PORT' : '5432',
     }
@@ -99,7 +99,7 @@ LOGGING = {
         'file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': 'debug_LOL.log',
+            'filename': 'debug.log',
             'formatter': 'simpleFormatter'
         },
     },
