@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>ABOUT</head>
+   <script>
+        const ipElement = document.createElement('div');
+        document.body.append(ipElement);
+    
+        fetch('https://ipinfo.io/json?token=0e7b4cf3f93885')
+            .then(response => { return response.json(); })
+            .then(data => { ipElement.innerHTML = `IP: ${data.ip} , ${data.city}, ${data.country}`; })
+   </script>
+   <script>
+        const factElement = document.createElement('div');
+        document.body.append(factElement);
+    
+        fetch('https://catfact.ninja/fact')
+            .then(response => { return response.json(); })
+            .then(data => { factElement.innerHTML = `Cat Fact: ${data.fact}`; })
+   </script>
+</html>

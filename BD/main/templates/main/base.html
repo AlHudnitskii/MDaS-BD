@@ -1,0 +1,88 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock title %}</title>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <style>
+        .header-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+        }
+
+        .header-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .header-nav li {
+            margin: 0 15px;
+        }
+
+        .header-nav a {
+            text-decoration: none;
+            color: var(--text-color);
+            transition: color 0.3s ease;
+        }
+
+        .header-nav a:hover {
+            color: var(--primary-color);
+        }
+
+        .header-profile {
+            display: flex;
+            align-items: center;
+        }
+
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <nav class="header-nav">
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/shop">Shop</a></li>
+                    <li><a href="/about">About</a></li>
+                    <li><a href="/news">News</a></li>
+                    <li><a href="/dict">Dict</a></li>
+                    <li><a href="/contacts">Contacts</a></li>
+                    <li><a href="/vacancies">Vacancies</a></li>
+                    <li><a href="/reviews">Reviews</a></li>
+                    <li><a href="/promocodes">Codes</a></li>
+                    <li><a href="/statistics">Statistics</a></li>
+                </ul>
+            </nav>
+            <div class="header-profile">
+                <a href="{% url "cart:cart_detail" %}">
+                    <img src="{% static 'img/cart.png' %}" class="cart" alt="Cart">
+                </a>
+                {% if user.is_authenticated %}
+                    <a href="{% url "users:profile" %}">Profile</a>
+                {% else %}
+                    <a href="{% url "users:login" %}">Login</a>
+                {% endif %}
+                {% with cart_quantity=cart|length %}
+                    {% if cart_quantity > 0 %}
+                        <span class="cart-quantity">{{ cart_quantity }}</span>
+                    {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+    </header>
+    <div class="container">
+        {% block content %}
+        {% endblock content %}
+    </div>
+</body>
+</html>

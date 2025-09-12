@@ -1,0 +1,83 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}{% if category %}{{ category.name }}{% else %}Products{% endif %} - Shop{% endblock title %}
+
+{% block content %}
+    <div class="llist d-flex">
+        <div class="sidebar">
+            <h3 class="mb-2">Categories</h3>
+            <ul class="list-unstyled">
+                <li {% if not category %}class="selected"{% endif %}>
+                    <a href="{% url "main:product_list" %}" class="text-decoration-none text-dark">All</a>
+                </li>
+                {% for c in categories %}
+                    <li {% if category.slug == c.slug %}class="selected"{% endif %}>
+                        <a href="{{ c.get_absolute_url }}" class="text-decoration-none text-dark">{{ c.name }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="main ms-3">
+            <h2 class="mb-2">{% if category %}{{ category.name }}{% else %}Products{% endif %}</h2>
+            <div class="sorting-searching d-flex justify-content-between align-items-center mb-2">
+                <div class="sorting">
+                    <label for="sort_by" class="form-label small text-muted me-2">Sort by:</label>
+                    <select id="sort_by" class="form-select form-select-sm" onchange="this.options[this.selectedIndex].value && (window.location = this.options[this.selectedIndex].value);">
+                        <option value="{% url 'main:product_list' %}?sort=name" {% if sort_by == 'name' %}selected{% endif %}>Name</option>
+                        <option value="{% url 'main:product_list' %}?sort=-price" {% if sort_by == '-price' %}selected{% endif %}>Price: High to Low</option>
+                        <option value="{% url 'main:product_list' %}?sort=price" {% if sort_by == 'price' %}selected{% endif %}>Price: Low to High</option>
+                    </select>
+                </div>
+                <div class="searching">
+                    <form action="" method="get" class="d-flex">
+                        <input type="text" name="q" class="form-control form-control-sm me-2" placeholder="Search...">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
+                    </form>
+                </div>
+            </div>
+            <div class="main-cards row row-cols-2 row-cols-md-4 g-2">
+                {% for product in products %}
+                    <div class="col">
+                        <div class="card shadow-sm">
+                            <a href="{{ product.get_absolute_url }}" class="text-decoration-none text-dark">
+                                <img src="{% if product.image %}{{ product.image.url }}{% else %}{% static 'img/noimage.jpg' %}{% endif %}" alt="{{ product.name }}" class="card-img-top" style="height: 150px; object-fit: contain;">
+                                <div class="card-body p-2">
+                                    <h6 class="card-title mb-1">{{ product.name }}</h6>
+                                    <div class="d-flex align-items-center">
+                                        {% if product.discount %}
+                                            <div class="cart-discount me-2">
+                                                <small class="line text-muted">$ {{ product.price }}</small>
+                                                <p class="price fw-bold mb-0">$ {{ product.sell_price }}</p>
+                                            </div>
+                                        {% else %}
+                                            <p class="price fw-bold mb-0">$ {{ product.price }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <nav aria-label="Product pagination" class="mt-3">
+                <ul class="pagination pagination-sm justify-content-center">
+                    <li class="page-item {% if not products.has_previous %}disabled{% endif %}">
+                        <a class="page-link" href="{% if products.has_previous %}?page={{ products.previous_page_number }}{% endif %}">Previous</a>
+                    </li>
+                    {% for page in products.paginator.page_range %}
+                        {% if page >= products.number|add:-1 and page <= products.number|add:1 %}
+                            <li class="page-item {% if products.number == page %}active{% endif %}">
+                                <a class="page-link" href="?page={{ page }}">{{ page }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    <li class="page-item {% if not products.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="{% if products.has_next %}?page={{ products.next_page_number }}{% endif %}">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        <div class="mainvl"></div>
+    </div>
+{% endblock content %}

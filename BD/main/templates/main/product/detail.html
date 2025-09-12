@@ -1,0 +1,38 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}
+    {{ product.name }}
+{% endblock title %}
+
+{% block content %}
+    <div class="detail-product">
+        <div class="detail-img">
+            <img class="detail-image" src="{{ product.image.url }}" alt="{{ product.name }}" width="200" height="200" style="object-fit: contain;">
+        </div>
+        <div class="detail-description">
+            <h2>{{ product.name }}</h2>
+            <h3 class="mb-2">Category: {{ product.category }}</h3>
+            <p class="mb-3">Description: {{ product.description|linebreaks }}</p>
+            <div class="d-flex align-items-center mb-3">
+                <h4 class="me-3">Price:</h4>
+                {% if product.discount %}
+                    <div class="cart-discount">
+                        <p class="line text-muted me-2">$ {{ product.price }}</p>
+                        <p class="price fw-bold">$ {{ product.sell_price }}</p>
+                    </div>
+                {% else %}
+                    <p class="price fw-bold">$ {{ product.price }}</p>
+                {% endif %}
+            </div>
+            <form action="{% url "cart:cart_add" product.id %}" class="qform" method="post">
+                <div class="cart-form mb-3">
+                    <label for="{{ cart_product_form.quantity.id_for_label }}" class="form-label">Quantity:</label>
+                    {{ cart_product_form }}
+                    {% csrf_token %}
+                </div>
+                <button type="submit" class="add-to-cart-btn btn btn-primary">Add to cart</button>
+            </form>
+        </div>
+    </div>
+{% endblock content %}

@@ -1,0 +1,140 @@
+@startuml
+!option handwritten true
+skinparam monochrome true
+skinparam class {
+  BorderColor black
+  ArrowColor black
+}
+hide methods
+hide stereotypes
+
+entity "user" as user {
+  + id: serial <<PK>>
+  --
+  + username: varchar(150) <<Unique>>
+  + password: varchar(128)
+  + email: varchar(254) <<Unique>>
+  + first_name: varchar(150)
+  + last_name: varchar(150)
+  + is_active: boolean
+  + image: varchar
+  + is_staff: boolean
+  + is_superuser: boolean
+  + date_joined: timestamp
+  + last_login: timestamp
+}
+
+entity "role" as role {
+  + id: serial <<PK>>
+  --
+  + name: varchar(100) <<Unique>>
+  + description: text
+  + created_at: timestamp
+}
+
+entity "user_role" as user_role {
+  + id: serial <<PK>>
+  --
+  + user_id: integer <<FK>>
+  + role_id: integer <<FK>>
+  + assigned_by_id: integer <<FK>>
+  + assigned_at: timestamp
+  <<Unique>> (user_id, role_id)
+}
+
+entity "user_note" as user_note {
+  + id: serial <<PK>>
+  --
+  + user_id: integer <<FK>>
+  + title: varchar(200)
+  + content: text
+  + created_at: timestamp
+  + updated_at: timestamp
+}
+
+entity "user_timezone" as user_timezone {
+  + id: serial <<PK>>
+  --
+  + user_id: integer <<FK>> <<Unique>>
+  + timezone: varchar(32) <<Default: 'UTC'>>
+  + updated_at: timestamp
+}
+
+entity "log_entry" as log_entry {
+  + id: serial <<PK>>
+  --
+  + user_id: integer <<FK>> <<Null>>
+  + action: varchar(50)
+  + details: jsonb <<Default: '{}'>>
+  + ip_address: inet <<Null>>
+  + status: varchar(10) <<Default: 'SUCCESS'>>
+  + timestamp: timestamp
+  + user_agent: text
+}
+
+entity "category" as category {
+  + id: serial <<PK>>
+  --
+  + name: varchar(20) <<Unique>>
+  + slug: varchar(20) <<Unique>>
+}
+
+entity "product" as product {
+  + id: serial <<PK>>
+  --
+  + category_id: integer <<FK>>
+  + name: varchar(50)
+  + slug: varchar(50)
+  + image: varchar <<Null>>
+  + description: text
+  + price: decimal(10, 2)
+  + available: boolean <<Default: 'true'>>
+  + created: timestamp
+  + updated: timestamp
+  + discount: decimal(4, 2) <<Default: 0.00>>
+}
+
+entity "product_image" as product_image {
+  + id: serial <<PK>>
+  --
+  + product_id: integer <<FK>>
+  + image: varchar <<Null>>
+}
+
+entity "order" as order {
+  + id: serial <<PK>>
+  --
+  + user_id: integer <<FK>> <<Null, Default: null>>
+  + first_name: varchar(50)
+  + last_name: varchar(50)
+  + email: varchar(254)
+  + city: varchar(100)
+  + address: varchar(250)
+  + postal_code: varchar(20)
+  + created: timestamp
+  + updated: timestamp
+  + paid: boolean <<Default: 'false'>>
+}
+
+entity "order_item" as order_item {
+  + id: serial <<PK>>
+  --
+  + order_id: integer <<FK>>
+  + product_id: integer <<FK>>
+  + price: decimal(10, 2)
+  + quantity: integer <<Default: 1>>
+}
+
+user ||--o{ user_role: "M2M"
+role ||--o{ user_role: "M2M"
+user ||--o{ user_note: "1 to M"
+user ||--|| user_timezone: "1 to 1"
+user ||--o{ log_entry: "1 to M"
+user ||--o{ user_role: "1 to M (assigned_by)"
+user ||--o{ order: "1 to M"
+category ||--o{ product: "1 to M"
+product ||--o{ product_image: "1 to M"
+order ||--o{ order_item: "1 to M"
+product ||--o{ order_item: "1 to M"
+
+@enduml

@@ -1,0 +1,174 @@
+@startuml
+!define PRIMARY_KEY(x) <u>x</u>
+!define FOREIGN_KEY(x) <i>x</i>
+
+entity "User" {
+  PRIMARY_KEY(id) : int
+  --
+  username : varchar(150) <<unique>>
+  password : varchar(128)
+  email : varchar(254) <<unique>>
+  first_name : varchar(150)
+  last_name : varchar(150)
+  is_active : boolean
+  image : varchar
+  is_staff : boolean
+  is_superuser : boolean
+  date_joined : timestamp
+  last_login : timestamp
+}
+
+entity "Role" {
+  PRIMARY_KEY(id) : int
+  --
+  name : varchar(100) <<unique>>
+  description : text
+  created_at : timestamp
+}
+
+entity "UserRole" {
+  PRIMARY_KEY(id) : int
+  --
+  FOREIGN_KEY(user_id) : int
+  FOREIGN_KEY(role_id) : int
+  assigned_at : timestamp
+  FOREIGN_KEY(assigned_by_id) : int <<nullable>>
+}
+
+entity "UserNote" {
+  PRIMARY_KEY(id) : int
+  --
+  FOREIGN_KEY(user_id) : int
+  title : varchar(200)
+  content : text
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+entity "UserTimezone" {
+  PRIMARY_KEY(id) : int
+  --
+  FOREIGN_KEY(user_id) : int <<unique>>
+  timezone : varchar(32)
+  updated_at : timestamp
+}
+
+entity "UserPreferences" {
+  PRIMARY_KEY(id) : int
+  --
+  FOREIGN_KEY(user_id) : int <<unique>>
+  language : varchar(10)
+  theme : varchar(20)
+  notifications_enabled : boolean
+  email_notifications : boolean
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+entity "LogEntry" {
+  PRIMARY_KEY(id) : int
+  --
+  FOREIGN_KEY(user_id) : int <<nullable>>
+  action : varchar(50)
+  details : json
+  ip_address : inet <<nullable>>
+  status : varchar(10)
+  timestamp : timestamp
+  user_agent : text
+}
+
+entity "Category" {
+  PRIMARY_KEY(id) : int
+  --
+  name : varchar(20) <<unique>>
+  slug : varchar(20) <<unique>>
+}
+
+entity "Product" {
+  PRIMARY_KEY(id) : int
+  --
+  FOREIGN_KEY(category_id) : int
+  name : varchar(50)
+  slug : varchar(50)
+  image : varchar <<nullable>>
+  description : text
+  price : decimal(10,2)
+  available : boolean
+  created : timestamp
+  updated : timestamp
+  discount : decimal(4,2)
+}
+
+entity "ProductImage" {
+  PRIMARY_KEY(id) : int
+  --
+  FOREIGN_KEY(product_id) : int
+  image : varchar <<nullable>>
+}
+
+entity "ProductReview" {
+  PRIMARY_KEY(id) : int
+  --
+  FOREIGN_KEY(product_id) : int
+  FOREIGN_KEY(user_id) : int
+  rating : int
+  comment : text
+  created_at : timestamp
+  updated_at : timestamp
+  is_verified : boolean
+}
+
+entity "Order" {
+  PRIMARY_KEY(id) : int
+  --
+  FOREIGN_KEY(user_id) : int <<nullable>>
+  first_name : varchar(50)
+  last_name : varchar(50)  
+  email : varchar(254)
+  city : varchar(100)
+  address : varchar(250)
+  postal_code : varchar(20)
+  created : timestamp
+  updated : timestamp
+  paid : boolean
+}
+
+entity "OrderItem" {
+  PRIMARY_KEY(id) : int
+  --
+  FOREIGN_KEY(order_id) : int
+  FOREIGN_KEY(product_id) : int
+  price : decimal(10,2)
+  quantity : int
+}
+
+entity "Wishlist" {
+  PRIMARY_KEY(id) : int
+  --
+  FOREIGN_KEY(user_id) : int
+  FOREIGN_KEY(product_id) : int
+  added_at : timestamp
+}
+
+' Relationships
+User ||--o{ UserRole : "has roles"
+Role ||--o{ UserRole : "assigned to users"
+User ||--|| UserTimezone : "has timezone"
+User ||--|| UserPreferences : "has preferences"
+User ||--o{ UserNote : "writes"
+User ||--o{ LogEntry : "performs actions"
+User ||--o{ ProductReview : "writes reviews"
+User ||--o{ Order : "places orders"
+User ||--o{ Wishlist : "has wishlist items"
+
+Category ||--o{ Product : "contains"
+Product ||--o{ ProductImage : "has images"
+Product ||--o{ ProductReview : "has reviews"
+Product ||--o{ OrderItem : "ordered in"
+Product ||--o{ Wishlist : "added to wishlist"
+
+Order ||--o{ OrderItem : "contains items"
+
+UserRole }o--|| User : "assigned by"
+
+@enduml
