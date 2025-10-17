@@ -1,0 +1,86 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Sales Statistics{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+{% endblock %}
+
+{% block content %}
+    <div class="statistics-container">
+        <h1>Sales Statistics</h1>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Sales</h3>
+                <p class="stat-value">${{ total_sales|floatformat:2 }}</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>Total Orders</h3>
+                <p class="stat-value">{{ total_orders }}</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>Average Order</h3>
+                <p class="stat-value">${{ avg_order|floatformat:2 }}</p>
+            </div>
+        </div>
+
+        <div class="stats-section">
+            <h2>Top Selling Products</h2>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Units Sold</th>
+                        <th>Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in top_products %}
+                        <tr>
+                            <td>{{ product.name }}</td>
+                            <td>{{ product.category.name }}</td>
+                            <td>{{ product.total_sold|default:0 }}</td>
+                            <td>${{ product.sell_price|default:0|floatformat:2 }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4">No sales data available</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="stats-section">
+    <h2>Sales Comparison</h2>
+
+    <div class="ladder-chart">
+    {% for category in category_stats %}
+        <div class="ladder-item">
+            <div class="ladder-category">{{ category.category__name }}</div>
+            <div class="ladder-bars">
+                <div class="ladder-bar units"
+                     style="--value: {{ category.unit_percentage|floatformat:2 }}%;">
+                    <span>{{ category.total_sold|default:0 }} units ({{ category.unit_percentage|floatformat:0 }}%)</span>
+                    <div class="ladder-value units-value">
+                        {{ category.total_sold|default:0 }}
+                    </div>
+                </div>
+                <div class="ladder-bar revenue"
+                     style="--value: {{ category.revenue_percentage|floatformat:2 }}%;">
+                    <span>${{ category.total_revenue|default:0|floatformat:2 }} ({{ category.revenue_percentage|floatformat:0 }}%)</span>
+                    <div class="ladder-value revenue-value">
+                        ${{ category.total_revenue|default:0|floatformat:2 }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <p>No category data available</p>
+    {% endfor %}
+</div>
+{% endblock %}

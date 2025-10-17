@@ -1,0 +1,155 @@
+@startuml
+skinparam linetype ortho
+skinparam roundCorner 5
+
+entity "User" {
+  * id : uuid <<PK>>
+  --
+  * username : varchar(150) 
+  * password : varchar(128) 
+  * email : varchar(254) 
+  * first_name : varchar(150)
+  * last_name : varchar(150)
+  * image : varchar
+  * date_joined : timestamp
+  * last_login : timestamp
+}
+
+entity "Role" {
+  * id : serial <<PK>>
+  --
+  * name : varchar(100) 
+  * description : text
+  * created_at : timestamp
+}
+
+entity "UserRole" {
+  * id : serial <<PK>>
+  --
+  * user_id : uuid <<FK>> 
+  * role_id : integer <<FK>>
+  * assigned_at : timestamp
+  * assigned_by_id : uuid <<FK>> 
+}
+
+entity "UserNote" {
+  * id : serial <<PK>>
+  --
+  * user_id : uuid <<FK>> 
+  * title : varchar(200)
+  * content : text
+  * created_at : timestamp
+  * updated_at : timestamp
+}
+
+entity "UserTimezone" {
+  * id : serial <<PK>>
+  --
+  * user_id : uuid <<FK>> 
+  * timezone : varchar(32)
+  * updated_at : timestamp
+}
+
+entity "LogEntry" {
+  * id : serial <<PK>>
+  --
+  * user_id : uuid <<FK>> 
+  * action : varchar(50)
+  * details : json
+  * status : varchar(10)
+  * timestamp : timestamp
+}
+
+entity "Category" {
+  * id : serial <<PK>>
+  --
+  * name : varchar(20) 
+  * slug : varchar(20) 
+}
+
+entity "Product" {
+  * id : uuid <<PK>>
+  --
+  * category_id : integer <<FK>>
+  * name : varchar(50)
+  * slug : varchar(50)
+  * image : varchar
+  * description : text
+  * price : decimal(10,2)
+  * available : boolean
+  * created : timestamp
+  * updated : timestamp
+  * discount : decimal(4,2)
+}
+
+entity "ProductImage" {
+  * id : serial <<PK>>
+  --
+  * product_id : uuid <<FK>> 
+  * image : varchar
+  * alt_text : varchar(255)
+}
+
+entity "ProductReview" {
+  * id : serial <<PK>>
+  --
+  * product_id : uuid <<FK>> 
+  * user_id : uuid <<FK>> 
+  * rating : integer
+  * comment : text
+  * created_at : timestamp
+  * updated_at : timestamp
+  * is_verified : boolean
+}
+
+entity "Order" {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK>> 
+  * first_name : varchar(50)
+  * last_name : varchar(50)
+  * email : varchar(254)
+  * city : varchar(100)
+  * address : varchar(250)
+  * postal_code : varchar(20)
+  * created : timestamp
+  * updated : timestamp
+  * paid : boolean
+}
+
+entity "OrderItem" {
+  * id : serial <<PK>>
+  --
+  * order_id : uuid <<FK>> 
+  * product_id : uuid <<FK>>
+  * price : decimal(10,2)
+  * quantity : integer
+}
+
+entity "Wishlist" {
+  * id : serial <<PK>>
+  --
+  * user_id : uuid <<FK>> 
+  * product_id : uuid <<FK>> 
+  * added_at : timestamp
+}
+
+User "1" -- "0..*" UserRole : "has"
+Role "1" -- "0..*" UserRole : "assigns"
+User "1" -- "1" UserTimezone : "has timezone"
+User "1" -- "0..*" UserNote : "writes"
+User "1" -- "0..*" LogEntry : "creates"
+User "1" -- "0..*" ProductReview : "writes"
+User "1" -- "0..*" Order : "places"
+User "1" -- "0..*" Wishlist : "adds to"
+User "1" -- "0..*" UserRole : "assigned_by"
+
+Category "1" -- "0..*" Product : "has"
+Product "1" -- "0..*" ProductImage : "has images"
+Product "1" -- "0..*" ProductReview : "has reviews"
+Product "1" -- "0..*" OrderItem : "is part of"
+Product "1" -- "0..*" Wishlist : "is in"
+
+Order "1" -- "0..*" OrderItem : "contains"
+
+@enduml

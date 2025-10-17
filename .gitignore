@@ -1,0 +1,16 @@
+venv/
+.venv
+.pylintrc
+__pycache__/
+migrations/
+
+.pytest_cache/
+debug.log
+debug_LOL.log
+htmlcov
+.vscode
+.idea
+.coverage
+
+db.sqlite3
+media/
