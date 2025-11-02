@@ -23,22 +23,12 @@ INSERT INTO "user_notes" (id, user_id, title, content, created_at, updated_at) V
 ('550e8400-e29b-41d4-a716-446655440302'::uuid, '550e8400-e29b-41d4-a716-446655440002'::uuid, 'Wishlist Items', 'Looking for gaming accessories', NOW(), NOW()),
 ('550e8400-e29b-41d4-a716-446655440303'::uuid, '550e8400-e29b-41d4-a716-446655440003'::uuid, 'Product Ideas', 'Suggestions for new product categories', NOW(), NOW());
 
-
-INSERT INTO "log_statuses" (id, code, name, description) VALUES 
-('550e8400-e29b-41d4-a716-446655440151'::uuid, 'SUCCESS', 'Success', 'Operation completed successfully'),
-('550e8400-e29b-41d4-a716-446655440152'::uuid, 'INFO', 'Information', 'Informational message'),
-('550e8400-e29b-41d4-a716-446655440153'::uuid, 'WARNING', 'Warning', 'Expected issue occurred'),
-('550e8400-e29b-41d4-a716-446655440154'::uuid, 'ERROR', 'Error', 'Error occurred during operation'),
-('550e8400-e29b-41d4-a716-446655440155'::uuid, 'CRITICAL', 'Critical', 'Critical error requiring immediate attention')
-ON CONFLICT (code) DO NOTHING;
-
-INSERT INTO "log_entries" (id, user_id, action, details, status_id, created_at) VALUES
-('550e8400-e29b-41d4-a716-446655440351'::uuid, '550e8400-e29b-41d4-a716-446655440001'::uuid, 'LOGIN', '{"ip": "192.168.1.1", "user_agent": "Mozilla/5.0"}', (SELECT id FROM "log_statuses" WHERE code = 'SUCCESS'), NOW() - INTERVAL '1 hour'),
-('550e8400-e29b-41d4-a716-446655440352'::uuid, '550e8400-e29b-41d4-a716-446655440002'::uuid, 'ORDER_CREATED', '{"order_id": 1, "total": 459.98}', (SELECT id FROM "log_statuses" WHERE code = 'SUCCESS'), NOW() - INTERVAL '5 days'),
-('550e8400-e29b-41d4-a716-446655440353'::uuid, '550e8400-e29b-41d4-a716-446655440003'::uuid, 'ORDER_CREATED', '{"order_id": 2, "total": 129.97}', (SELECT id FROM "log_statuses" WHERE code = 'SUCCESS'), NOW() - INTERVAL '3 days'),
-('550e8400-e29b-41d4-a716-446655440354'::uuid, '550e8400-e29b-41d4-a716-446655440004'::uuid, 'LOGIN_FAILED', '{"ip": "192.168.1.100", "reason": "invalid_password"}', (SELECT id FROM "log_statuses" WHERE code = 'ERROR'), NOW() - INTERVAL '2 hours'),
-('550e8400-e29b-41d4-a716-446655440355'::uuid, '550e8400-e29b-41d4-a716-446655440002'::uuid, 'REVIEW_POSTED', '{"product_id": 1, "rating": 5}', (SELECT id FROM "log_statuses" WHERE code = 'SUCCESS'), NOW() - INTERVAL '3 days');
-
+INSERT INTO log_entries (id, user_id, action, details, status, timestamp) VALUES
+('550e8400-e29b-41d4-a716-446655440351'::uuid, '550e8400-e29b-41d4-a716-446655440001'::uuid, 'LOGIN', '{"ip": "192.168.1.1", "user_agent": "Mozilla/5.0"}'::jsonb, 'SUCCESS', NOW() - INTERVAL '1 hour'),
+('550e8400-e29b-41d4-a716-446655440352'::uuid, '550e8400-e29b-41d4-a716-446655440002'::uuid, 'ORDER_CREATED', '{"order_id": 1, "total": 459.98}'::jsonb, 'SUCCESS', NOW() - INTERVAL '5 days'),
+('550e8400-e29b-41d4-a716-446655440353'::uuid, '550e8400-e29b-41d4-a716-446655440003'::uuid, 'ORDER_CREATED', '{"order_id": 2, "total": 129.97}'::jsonb, 'SUCCESS', NOW() - INTERVAL '3 days'),
+('550e8400-e29b-41d4-a716-446655440354'::uuid, '550e8400-e29b-41d4-a716-446655440004'::uuid, 'LOGIN_FAILED', '{"ip": "192.168.1.100", "reason": "invalid_password"}'::jsonb, 'FAILED', NOW() - INTERVAL '2 hours'),
+('550e8400-e29b-41d4-a716-446655440355'::uuid, '550e8400-e29b-41d4-a716-446655440002'::uuid, 'REVIEW_POSTED', '{"product_id": 1, "rating": 5}'::jsonb, 'SUCCESS', NOW() - INTERVAL '3 days');
 
 INSERT INTO "categories" (id, name, slug) VALUES
 ('550e8400-e29b-41d4-a716-446655440401'::uuid, 'Electronics', 'electronics'),
@@ -47,14 +37,14 @@ INSERT INTO "categories" (id, name, slug) VALUES
 ('550e8400-e29b-41d4-a716-446655440404'::uuid, 'Audio', 'audio'),
 ('550e8400-e29b-41d4-a716-446655440405'::uuid, 'Computing', 'computing');
 
-INSERT INTO "products" (id, category_id, name, slug, description, price, created_at, updated_at, discount) VALUES
-('550e8400-e29b-41d4-a716-446655440501'::uuid, '550e8400-e29b-41d4-a716-446655440404'::uuid, 'Wireless Headphones', 'wireless-headphones', 'High-quality wireless headphones with noise cancellation', 299.99, NOW(), NOW(), 0.10),
-('550e8400-e29b-41d4-a716-446655440502'::uuid, '550e8400-e29b-41d4-a716-446655440402'::uuid, 'Gaming Keyboard', 'gaming-keyboard', 'Mechanical gaming keyboard with RGB lighting', 159.99, NOW(), NOW(), 0.05),
-('550e8400-e29b-41d4-a716-446655440503'::uuid, '550e8400-e29b-41d4-a716-446655440402'::uuid, 'Gaming Mouse', 'gaming-mouse', 'Professional gaming mouse with precision sensor', 79.99, NOW(), NOW(), 0.00),
-('550e8400-e29b-41d4-a716-446655440504'::uuid, '550e8400-e29b-41d4-a716-446655440403'::uuid, 'Phone Case', 'phone-case', 'Protective phone case with premium materials', 24.99, NOW(), NOW(), 0.15),
-('550e8400-e29b-41d4-a716-446655440505'::uuid, '550e8400-e29b-41d4-a716-446655440401'::uuid, 'Tablet', 'tablet-10inch', '10-inch tablet with high-resolution display', 449.99, NOW(), NOW(), 0.20),
-('550e8400-e29b-41d4-a716-446655440506'::uuid, '550e8400-e29b-41d4-a716-446655440404'::uuid, 'Bluetooth Speaker', 'bluetooth-speaker', 'Portable Bluetooth speaker with rich sound', 89.99, NOW(), NOW(), 0.08),
-('550e8400-e29b-41d4-a716-446655440507'::uuid, '550e8400-e29b-41d4-a716-446655440405'::uuid, 'External HDD', 'external-hdd-1tb', '1TB external hard drive for backup', 69.99, NOW(), NOW(), 0.00);
+INSERT INTO "products" (id, category_id, name, slug, description, price, available, created_at, updated_at, discount) VALUES
+('550e8400-e29b-41d4-a716-446655440501'::uuid, '550e8400-e29b-41d4-a716-446655440404'::uuid, 'Wireless Headphones', 'wireless-headphones', 'High-quality wireless headphones with noise cancellation', 299.99, TRUE, NOW(), NOW(), 0.10),
+('550e8400-e29b-41d4-a716-446655440502'::uuid, '550e8400-e29b-41d4-a716-446655440402'::uuid, 'Gaming Keyboard', 'gaming-keyboard', 'Mechanical gaming keyboard with RGB lighting', 159.99, TRUE, NOW(), NOW(), 0.05),
+('550e8400-e29b-41d4-a716-446655440503'::uuid, '550e8400-e29b-41d4-a716-446655440402'::uuid, 'Gaming Mouse', 'gaming-mouse', 'Professional gaming mouse with precision sensor', 79.99, TRUE, NOW(), NOW(), 0.00),
+('550e8400-e29b-41d4-a716-446655440504'::uuid, '550e8400-e29b-41d4-a716-446655440403'::uuid, 'Phone Case', 'phone-case', 'Protective phone case with premium materials', 24.99, FALSE, NOW(), NOW(), 0.15),
+('550e8400-e29b-41d4-a716-446655440505'::uuid, '550e8400-e29b-41d4-a716-446655440401'::uuid, 'Tablet', 'tablet-10inch', '10-inch tablet with high-resolution display', 449.99, TRUE, NOW(), NOW(), 0.20),
+('550e8400-e29b-41d4-a716-446655440506'::uuid, '550e8400-e29b-41d4-a716-446655440404'::uuid, 'Bluetooth Speaker', 'bluetooth-speaker', 'Portable Bluetooth speaker with rich sound', 89.99, TRUE, NOW(), NOW(), 0.08),
+('550e8400-e29b-41d4-a716-446655440507'::uuid, '550e8400-e29b-41d4-a716-446655440405'::uuid, 'External HDD', 'external-hdd-1tb', '1TB external hard drive for backup', 69.99, TRUE, NOW(), NOW(), 0.00);
 
 INSERT INTO "product_images" (id, product_id, image_url, description, is_main, created_at) VALUES
 ('550e8400-e29b-41d4-a716-446655440601'::uuid, '550e8400-e29b-41d4-a716-446655440501'::uuid, 'products/headphones_main.jpg', 'Wireless headphones main view', TRUE, NOW()),
@@ -63,10 +53,10 @@ INSERT INTO "product_images" (id, product_id, image_url, description, is_main, c
 ('550e8400-e29b-41d4-a716-446655440604'::uuid, '550e8400-e29b-41d4-a716-446655440503'::uuid, 'products/mouse_main.jpg', 'Gaming mouse main view', TRUE, NOW()),
 ('550e8400-e29b-41d4-a716-446655440605'::uuid, '550e8400-e29b-41d4-a716-446655440504'::uuid, 'products/case_main.jpg', 'Phone case main view', TRUE, NOW());
 
-INSERT INTO "orders" (id, user_id, city, address, postal_code, created_at, updated_at, paid) VALUES
-('550e8400-e29b-41d4-a716-446655440701'::uuid, '550e8400-e29b-41d4-a716-446655440001'::uuid, 'New York', '123 Main St, Apt 4B', '10001', NOW() - INTERVAL '5 days', NOW() - INTERVAL '5 days', TRUE),
-('550e8400-e29b-41d4-a716-446655440702'::uuid, '550e8400-e29b-41d4-a716-446655440002'::uuid, 'London', '456 Queen St', 'SW1A 1AA', NOW() - INTERVAL '3 days', NOW() - INTERVAL '2 days', TRUE),
-('550e8400-e29b-41d4-a716-446655440703'::uuid, '550e8400-e29b-41d4-a716-446655440003'::uuid, 'Tokyo', '789 Shibuya District', '150-0002', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day', FALSE);
+INSERT INTO "orders" (id, user_id, first_name, last_name, email, city, address, postal_code, created_at, updated_at, paid) VALUES 
+('550e8400-e29b-41d4-a716-446655440701'::uuid, '550e8400-e29b-41d4-a716-446655440001'::uuid, 'Admin', 'User', 'admin@example.com', 'New York', '123 Main St, Apt 4B', '10001', NOW() - INTERVAL '5 days', NOW() - INTERVAL '5 days', TRUE), 
+('550e8400-e29b-41d4-a716-446655440702'::uuid, '550e8400-e29b-41d4-a716-446655440002'::uuid, 'John', 'Doe', 'john@example.com', 'London', '456 Queen St', 'SW1A 1AA', NOW() - INTERVAL '3 days', NOW() - INTERVAL '2 days', TRUE), 
+('550e8400-e29b-41d4-a716-446655440703'::uuid, '550e8401-e29b-41d4-a716-446655440003'::uuid, 'Jane', 'Smith', 'jane@example.com', 'Tokyo', '789 Shibuya District', '150-0002', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day', FALSE);
 
 INSERT INTO "order_items" (id, order_id, product_id, price, quantity) VALUES
 ('550e8400-e29b-41d4-a716-446655440801'::uuid, '550e8400-e29b-41d4-a716-446655440701'::uuid, '550e8400-e29b-41d4-a716-446655440501'::uuid, 299.99, 1),
@@ -93,3 +83,10 @@ INSERT INTO "wishlist_items" (id, wishlist_id, product_id, created_at, updated_a
 ('550e8400-e29b-41d4-a716-446655441102'::uuid, '550e8400-e29b-41d4-a716-446655441002'::uuid, '550e8400-e29b-41d4-a716-446655440507'::uuid, NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day'),
 ('550e8400-e29b-41d4-a716-446655441103'::uuid, '550e8400-e29b-41d4-a716-446655441003'::uuid, '550e8400-e29b-41d4-a716-446655440501'::uuid, NOW(), NOW()),
 ('550e8400-e29b-41d4-a716-446655441104'::uuid, '550e8400-e29b-41d4-a716-446655441003'::uuid, '550e8400-e29b-41d4-a716-446655440502'::uuid, NOW(), NOW());
+
+
+UPDATE users SET password = hash_password('admin123') WHERE username = 'admin';
+UPDATE users SET password = hash_password('john123') WHERE username = 'john_doe';
+UPDATE users SET password = hash_password('jane123') WHERE username = 'jane_smith';
+UPDATE users SET password = hash_password('bob123') WHERE username = 'bob_wilson';
+UPDATE users SET password = hash_password('alice123') WHERE username = 'alice_brown';
