@@ -70,6 +70,7 @@ DECLARE
    v_deleted_count INTEGER;
    v_cutoff_date TIMESTAMP WITH TIME ZONE;
 BEGIN
+   BEGIN;
    v_cutoff_date := NOW() - (p_days_to_keep || ' days')::INTERVAL;
 
    DELETE FROM log_entries
@@ -79,6 +80,7 @@ BEGIN
 
    RAISE NOTICE 'Deleted % log entries older than % days (before %)',
         v_deleted_count, p_days_to_keep, v_cutoff_date::DATE;
+   COMMIT;     
 END;
 $$;   
 

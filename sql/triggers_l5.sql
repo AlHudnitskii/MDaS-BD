@@ -12,6 +12,17 @@ CREATE TRIGGER trg_products_update_timestamp
    FOR EACH ROW 
    EXECUTE FUNCTION update_timestamp();
 
+ALTER TRIGGER trg_products_update_timestamp
+ON products RENAME TO trg_products_update_timestamp_new_name;
+
+ALTER TABLE products DISABLE TRIGGER trg_products_update_timestamp;
+
+ALTER TABLE products ENABLE TRIGGER trg_products_update_timestamp;
+
+DROP TRIGGER trg_products_update_timestamp ON products;
+
+SELECT event_object_table, trigger_name FROM information_schema.triggers;
+
 CREATE TRIGGER trg_orders_update_timestamp
    BEFORE UPDATE ON orders
    FOR EACH ROW
@@ -176,29 +187,29 @@ CREATE TRIGGER trg_prevent_paid_order_deletion
 CREATE OR REPLACE FUNCTION log_order_created()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO log_entries (user_id, action, details, status, timestamp)
-    VALUES (
-        NEW.user_id,
-        'ORDER_CREATED',
-        jsonb_build_object(
-            'order_id', NEW.id,
-            'email', NEW.email,
-            'city', NEW.city,
-            'paid', NEW.paid
-        ),
-        'SUCCESS',
-        NOW()
-    );
+   INSERT INTO log_entries (user_id, action, details, status, timestamp)
+   VALUES (
+      NEW.user_id,
+      'ORDER_CREATED',
+      jsonb_build_object(
+         'order_id', NEW.id,
+         'email', NEW.email,
+         'city', NEW.city,
+         'paid', NEW.paid
+      ),
+      'SUCCESS',
+      NOW()
+   );
     
-    RETURN NEW;
+   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_log_order_created
-    AFTER INSERT ON orders
-    FOR EACH ROW
-    EXECUTE FUNCTION log_order_created();
-
+   AFTER INSERT ON orders
+   FOR EACH ROW
+   EXECUTE FUNCTION log_order_created();
+   
 #8 - Логирование заказа в случае его оплаты
 CREATE OR REPLACE FUNCTION log_payment_status_change()
 RETURNS TRIGGER AS $$
