@@ -99,7 +99,7 @@
 
 {% block content %}
 <div class="card">
-    <h1 style="margin-bottom: 2rem;">📊 Sales Statistics</h1>
+    <h1 style="margin-bottom: 2rem;">Sales Statistics</h1>
     <p style="color: #666; margin-bottom: 2rem;">
         Data retrieved using SQL queries from Lab 4
     </p>
@@ -122,7 +122,7 @@
 
     <!-- Top Products -->
     <div class="chart-container">
-        <h2 style="margin-bottom: 1.5rem;">🏆 Top Selling Products</h2>
+        <h2 style="margin-bottom: 1.5rem;">Top Selling Products</h2>
         <p style="color: #666; margin-bottom: 1.5rem; font-style: italic;">
             Query: <code style="background: #f8f9fa; padding: 0.2rem 0.5rem; border-radius: 4px;">
                 SELECT p.name, SUM(oi.quantity) as total_sold FROM products p ...
@@ -159,7 +159,7 @@
 
     <!-- Category Statistics -->
     <div class="chart-container">
-        <h2 style="margin-bottom: 1.5rem;">📦 Sales by Category</h2>
+        <h2 style="margin-bottom: 1.5rem;">Sales by Category</h2>
         <p style="color: #666; margin-bottom: 1.5rem; font-style: italic;">
             Query: <code style="background: #f8f9fa; padding: 0.2rem 0.5rem; border-radius: 4px;">
                 SELECT c.name, SUM(oi.quantity), SUM(oi.price * oi.quantity) FROM categories c ...

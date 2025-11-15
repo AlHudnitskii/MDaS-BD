@@ -1,14 +1,11 @@
-"""
-Views для работы с БД через чистый SQL
-Все запросы выполняются через SQLManager
-"""
 import logging
+
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.hashers import check_password
 
 from .sql_manager import (
     UserRepository,
@@ -23,24 +20,19 @@ logger = logging.getLogger(__name__)
 
 
 # ============= АУТЕНТИФИКАЦИЯ =============
-
 def login_view(request):
-    """Вход пользователя через SQL"""
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
         
         try:
-            # Получаем пользователя через SQL
             user_data = UserRepository.get_user_by_username(username)
             
             if user_data and check_password(password, user_data['password']):
-                # Сохраняем данные в сессии
                 request.session['user_id'] = str(user_data['id'])
                 request.session['username'] = user_data['username']
                 request.session['is_authenticated'] = True
                 
-                # Логируем вход
                 LogRepository.log_action(
                     str(user_data['id']),
                     'USER_LOGIN',
@@ -62,7 +54,6 @@ def login_view(request):
 
 
 def register_view(request):
-    """Регистрация пользователя через SQL"""
     if request.method == 'POST':
         username = request.POST.get('username')
         email = request.POST.get('email')
@@ -76,18 +67,15 @@ def register_view(request):
             return render(request, 'users/registration.html')
         
         try:
-            # Создаем пользователя через SQL
             user_data = UserRepository.create_user(
                 username, email, password, first_name, last_name
             )
             
             if user_data:
-                # Автоматический вход
                 request.session['user_id'] = str(user_data['id'])
                 request.session['username'] = user_data['username']
                 request.session['is_authenticated'] = True
                 
-                # Логируем регистрацию
                 LogRepository.log_action(
                     str(user_data['id']),
                     'USER_REGISTER',
@@ -106,7 +94,6 @@ def register_view(request):
 
 
 def logout_view(request):
-    """Выход пользователя"""
     user_id = request.session.get('user_id')
     username = request.session.get('username')
     
@@ -127,20 +114,15 @@ def logout_view(request):
 
 
 # ============= ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ =============
-
 @login_required
 def profile_view(request):
-    """Профиль пользователя с использованием SQL"""
     user_id = request.session.get('user_id')
     
     if not user_id:
         return redirect('login')
     
     try:
-        # Получаем данные пользователя
-        user_data = UserRepository.get_user_by_username(request.session.get('username'))
-        
-        # Получаем заказы пользователя
+        user_data = UserRepository.get_user_by_username(request.session.get('username'))        
         orders = OrderRepository.get_user_orders(user_id)
         
         if request.method == 'POST':
@@ -148,7 +130,6 @@ def profile_view(request):
             last_name = request.POST.get('last_name')
             email = request.POST.get('email')
             
-            # Обновляем профиль через SQL
             UserRepository.update_user_profile(user_id, first_name, last_name, email)
             
             LogRepository.log_action(
@@ -175,21 +156,17 @@ def profile_view(request):
 
 
 # ============= КАТАЛОГ ТОВАРОВ =============
-
 def product_list_view(request, category_slug=None):
-    """Список товаров через SQL"""
     try:
         sort_by = request.GET.get('sort', 'name')
         search_query = request.GET.get('q')
         
-        # Получаем категории
         categories = CategoryRepository.get_all_categories()
         current_category = None
         
         if category_slug:
             current_category = CategoryRepository.get_category_by_slug(category_slug)
         
-        # Получаем товары
         if search_query:
             products = ProductRepository.search_products(search_query)
             logger.info(f"Search query: '{search_query}', found {len(products)} products")
@@ -213,7 +190,6 @@ def product_list_view(request, category_slug=None):
 
 
 def product_detail_view(request, slug):
-    """Детали товара через SQL"""
     try:
         product = ProductRepository.get_product_by_slug(slug)
         
@@ -231,16 +207,13 @@ def product_detail_view(request, slug):
 
 
 # ============= КОРЗИНА =============
-
 def cart_detail_view(request):
-    """Просмотр корзины"""
     cart = request.session.get('cart', {})
     cart_items = []
     total_price = 0
     
     try:
         for product_id, item_data in cart.items():
-            # Получаем актуальные данные товара из БД
             product = ProductRepository.get_product_by_slug(item_data.get('slug'))
             if product:
                 quantity = item_data.get('quantity', 1)
@@ -257,7 +230,6 @@ def cart_detail_view(request):
             'cart_items': cart_items,
             'total_price': total_price
         }
-        
         return render(request, 'cart/detail.html', context)
     
     except Exception as e:
@@ -268,9 +240,7 @@ def cart_detail_view(request):
 
 @require_http_methods(["POST"])
 def cart_add_view(request, product_id):
-    """Добавление товара в корзину"""
     try:
-        # Получаем товар из БД через SQL
         product = ProductRepository.get_product_by_slug(request.POST.get('slug'))
         
         if not product:
@@ -280,7 +250,6 @@ def cart_add_view(request, product_id):
         cart = request.session.get('cart', {})
         quantity = int(request.POST.get('quantity', 1))
         
-        # Добавляем/обновляем товар в корзине
         if product_id in cart:
             cart[product_id]['quantity'] += quantity
         else:
@@ -307,7 +276,6 @@ def cart_add_view(request, product_id):
 
 @require_http_methods(["POST"])
 def cart_remove_view(request, product_id):
-    """Удаление товара из корзины"""
     cart = request.session.get('cart', {})
     
     if product_id in cart:
@@ -320,9 +288,7 @@ def cart_remove_view(request, product_id):
 
 
 # ============= ОФОРМЛЕНИЕ ЗАКАЗА =============
-
 def order_create_view(request):
-    """Создание заказа через SQL (с использованием процедуры из ЛР5)"""
     user_id = request.session.get('user_id')
     
     if not user_id:
@@ -337,7 +303,6 @@ def order_create_view(request):
     
     if request.method == 'POST':
         try:
-            # Получаем данные формы
             first_name = request.POST.get('first_name')
             last_name = request.POST.get('last_name')
             email = request.POST.get('email')
@@ -345,7 +310,6 @@ def order_create_view(request):
             address = request.POST.get('address')
             postal_code = request.POST.get('postal_code')
             
-            # Подготавливаем товары для процедуры
             items = []
             for product_id, item_data in cart.items():
                 items.append({
@@ -353,18 +317,15 @@ def order_create_view(request):
                     'quantity': item_data['quantity']
                 })
             
-            # Создаем заказ через процедуру SQL
             order_id = OrderRepository.create_order_with_items(
                 user_id, first_name, last_name, email,
                 city, address, postal_code, items
             )
             
             if order_id:
-                # Очищаем корзину
                 request.session['cart'] = {}
                 request.session.modified = True
                 
-                # Логируем создание заказа
                 LogRepository.log_action(
                     user_id,
                     'ORDER_CREATED',
@@ -382,7 +343,6 @@ def order_create_view(request):
             logger.error(f"Order creation error: {e}")
             messages.error(request, f'Error creating order: {str(e)}')
     
-    # Рассчитываем итоговую сумму
     total_price = sum(item['price'] * item['quantity'] for item in cart.values())
     
     context = {
@@ -394,7 +354,6 @@ def order_create_view(request):
 
 
 def order_success_view(request, order_id):
-    """Страница успешного создания заказа"""
     try:
         order = OrderRepository.get_order_details(order_id)
         context = {'order': order}
@@ -406,17 +365,10 @@ def order_success_view(request, order_id):
 
 
 # ============= СТАТИСТИКА =============
-
 def statistics_view(request):
-    """Статистика продаж через SQL (из ЛР4)"""
     try:
-        # Получаем общую статистику
-        stats = StatisticsRepository.get_sales_statistics()
-        
-        # Получаем топ товары
+        stats = StatisticsRepository.get_sales_statistics()    
         top_products = ProductRepository.get_top_products(5)
-        
-        # Получаем статистику по категориям
         category_stats = StatisticsRepository.get_category_statistics()
         
         context = {
@@ -435,23 +387,9 @@ def statistics_view(request):
         return render(request, 'main/info/statistics.html', {})
 
 
-# ============= ИНФОРМАЦИОННЫЕ СТРАНИЦЫ =============
-
-def about_view(request):
-    """Страница 'О нас'"""
-    return render(request, 'main/info/about.html')
-
-
-def contacts_view(request):
-    """Страница контактов"""
-    return render(request, 'main/info/contacts.html')
-
-
 # ============= АДМИНИСТРАТИВНЫЕ ФУНКЦИИ =============
-
 @login_required
 def cleanup_logs_view(request):
-    """Очистка старых логов (процедура из ЛР5)"""
     user_id = request.session.get('user_id')
     
     if request.method == 'POST':
@@ -477,12 +415,10 @@ def cleanup_logs_view(request):
 
 @login_required
 def process_payment_view(request, order_id):
-    """Обработка оплаты заказа (процедура из ЛР5)"""
     user_id = request.session.get('user_id')
     
     try:
-        OrderRepository.process_payment(order_id)
-        
+        OrderRepository.process_payment(order_id)    
         LogRepository.log_action(
             user_id,
             'ORDER_PAID',
@@ -500,9 +436,7 @@ def process_payment_view(request, order_id):
 
 
 # ============= API ДЛЯ AJAX-ЗАПРОСОВ =============
-
 def api_product_search(request):
-    """API для поиска товаров"""
     query = request.GET.get('q', '')
     
     if len(query) < 3:
@@ -517,7 +451,6 @@ def api_product_search(request):
 
 
 def api_category_products(request, category_slug):
-    """API для получения товаров категории"""
     try:
         products = ProductRepository.get_all_products(category_slug)
         return JsonResponse({'products': products})
@@ -527,11 +460,8 @@ def api_category_products(request, category_slug):
 
 
 # ============= ГЛАВНАЯ СТРАНИЦА =============
-
 def index_view(request):
-    """Главная страница с популярными товарами"""
     try:
-        # Получаем топ товары через SQL
         popular_products = ProductRepository.get_top_products(4)
         context = {'products': popular_products}
         return render(request, 'main/index/index.html', context)

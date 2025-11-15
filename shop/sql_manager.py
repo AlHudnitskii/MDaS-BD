@@ -1,26 +1,19 @@
-"""
-SQL Manager для прямого взаимодействия с базой данных
-Все операции выполняются через чистый SQL
-"""
-from typing import List, Dict, Any, Optional
-from decimal import Decimal
+import logging
 import psycopg2
+
+from typing import List, Dict, Any, Optional
 from psycopg2.extras import RealDictCursor
 from django.conf import settings
-import logging
 
 logger = logging.getLogger(__name__)
 
 
-class SQLManager:
-    """Менеджер для выполнения SQL-запросов напрямую к БД"""
-    
+class SQLManager:   
     def __init__(self):
         self.connection = None
         self.cursor = None
     
     def __enter__(self):
-        """Открытие соединения с БД"""
         self.connection = psycopg2.connect(
             dbname=settings.DATABASES['default']['NAME'],
             user=settings.DATABASES['default']['USER'],
@@ -32,14 +25,12 @@ class SQLManager:
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Закрытие соединения"""
         if self.cursor:
             self.cursor.close()
         if self.connection:
             self.connection.close()
     
     def execute(self, query: str, params: tuple = None) -> List[Dict[str, Any]]:
-        """Выполнение SELECT запроса"""
         try:
             logger.info(f"Executing SQL: {query[:100]}... with params: {params}")
             self.cursor.execute(query, params)
@@ -51,7 +42,6 @@ class SQLManager:
             raise
     
     def execute_one(self, query: str, params: tuple = None) -> Optional[Dict[str, Any]]:
-        """Выполнение SELECT запроса с получением одной записи"""
         try:
             logger.info(f"Executing SQL (one): {query[:100]}...")
             self.cursor.execute(query, params)
@@ -62,7 +52,6 @@ class SQLManager:
             raise
     
     def execute_update(self, query: str, params: tuple = None) -> int:
-        """Выполнение INSERT/UPDATE/DELETE запроса"""
         try:
             logger.info(f"Executing UPDATE SQL: {query[:100]}...")
             self.cursor.execute(query, params)
@@ -76,7 +65,6 @@ class SQLManager:
             raise
     
     def call_procedure(self, proc_name: str, params: tuple = None):
-        """Вызов хранимой процедуры"""
         try:
             logger.info(f"Calling procedure: {proc_name} with params: {params}")
             self.cursor.callproc(proc_name, params)
@@ -88,12 +76,9 @@ class SQLManager:
             raise
 
 
-class UserRepository:
-    """Репозиторий для работы с пользователями через SQL"""
-    
+class UserRepository: 
     @staticmethod
     def get_all_active_users() -> List[Dict[str, Any]]:
-        """Получение всех активных пользователей"""
         query = """
             SELECT id, username, email, first_name, last_name, 
                    is_active, is_superuser, date_joined
@@ -106,7 +91,6 @@ class UserRepository:
     
     @staticmethod
     def get_user_by_username(username: str) -> Optional[Dict[str, Any]]:
-        """Получение пользователя по username"""
         query = """
             SELECT id, username, email, first_name, last_name,
                    password, is_active, is_superuser, date_joined, last_login
@@ -119,7 +103,6 @@ class UserRepository:
     @staticmethod
     def create_user(username: str, email: str, password: str, 
                    first_name: str, last_name: str) -> Dict[str, Any]:
-        """Создание нового пользователя"""
         query = """
             INSERT INTO users (
                 id, username, password, email, first_name, last_name,
@@ -136,7 +119,6 @@ class UserRepository:
     
     @staticmethod
     def update_user_profile(user_id: str, first_name: str, last_name: str, email: str):
-        """Обновление профиля пользователя"""
         query = """
             UPDATE users
             SET first_name = %s, last_name = %s, email = %s
@@ -147,7 +129,6 @@ class UserRepository:
     
     @staticmethod
     def get_users_with_roles() -> List[Dict[str, Any]]:
-        """Получение пользователей с их ролями (из ЛР4)"""
         query = """
             SELECT DISTINCT
                 u.id,
@@ -167,11 +148,8 @@ class UserRepository:
 
 
 class ProductRepository:
-    """Репозиторий для работы с товарами через SQL"""
-    
     @staticmethod
     def get_all_products(category_slug: str = None, sort_by: str = 'name') -> List[Dict[str, Any]]:
-        """Получение всех доступных товаров с фильтрацией"""
         base_query = """
             SELECT 
                 p.id,
@@ -210,7 +188,6 @@ class ProductRepository:
     
     @staticmethod
     def get_product_by_slug(slug: str) -> Optional[Dict[str, Any]]:
-        """Получение товара по slug"""
         query = """
             SELECT 
                 p.id,
@@ -232,7 +209,6 @@ class ProductRepository:
     
     @staticmethod
     def search_products(search_query: str) -> List[Dict[str, Any]]:
-        """Поиск товаров (из ЛР4)"""
         query = """
             SELECT 
                 p.id,
@@ -254,8 +230,6 @@ class ProductRepository:
     
     @staticmethod
     def get_top_products(limit: int = 10) -> List[Dict[str, Any]]:
-        """Получение топ продуктов (используем процедуру из ЛР5)"""
-        # Вызываем процедуру через обычный запрос
         query = """
             SELECT 
                 p.id,
@@ -278,11 +252,8 @@ class ProductRepository:
 
 
 class CategoryRepository:
-    """Репозиторий для работы с категориями"""
-    
     @staticmethod
     def get_all_categories() -> List[Dict[str, Any]]:
-        """Получение всех категорий"""
         query = """
             SELECT id, name, slug
             FROM categories
@@ -293,7 +264,6 @@ class CategoryRepository:
     
     @staticmethod
     def get_category_by_slug(slug: str) -> Optional[Dict[str, Any]]:
-        """Получение категории по slug"""
         query = """
             SELECT id, name, slug
             FROM categories
@@ -304,16 +274,11 @@ class CategoryRepository:
 
 
 class OrderRepository:
-    """Репозиторий для работы с заказами"""
-    
     @staticmethod
     def create_order_with_items(user_id: str, first_name: str, last_name: str,
                                email: str, city: str, address: str, 
                                postal_code: str, items: List[Dict]) -> str:
-        """Создание заказа с товарами (используем процедуру из ЛР5)"""
         import json
-        
-        # Подготавливаем JSONB для процедуры
         items_json = json.dumps(items)
         
         query = """
@@ -329,7 +294,6 @@ class OrderRepository:
             ))
             db.connection.commit()
             
-            # Получаем ID последнего созданного заказа
             db.cursor.execute("""
                 SELECT id FROM orders 
                 WHERE user_id = %s::uuid 
@@ -341,7 +305,6 @@ class OrderRepository:
     
     @staticmethod
     def get_user_orders(user_id: str) -> List[Dict[str, Any]]:
-        """Получение заказов пользователя"""
         query = """
             SELECT 
                 o.id,
@@ -366,7 +329,6 @@ class OrderRepository:
     
     @staticmethod
     def get_order_details(order_id: str) -> Dict[str, Any]:
-        """Получение деталей заказа"""
         query = """
             SELECT 
                 o.id,
@@ -406,7 +368,6 @@ class OrderRepository:
     
     @staticmethod
     def process_payment(order_id: str):
-        """Обработка оплаты заказа (процедура из ЛР5)"""
         query = "CALL process_payment(%s::uuid)"
         with SQLManager() as db:
             db.cursor.execute(query, (order_id,))
@@ -414,11 +375,8 @@ class OrderRepository:
 
 
 class StatisticsRepository:
-    """Репозиторий для статистики"""
-    
     @staticmethod
     def get_sales_statistics() -> Dict[str, Any]:
-        """Получение статистики продаж"""
         total_sales_query = """
             SELECT COALESCE(SUM(oi.price * oi.quantity), 0) as total
             FROM order_items oi
@@ -456,7 +414,6 @@ class StatisticsRepository:
     
     @staticmethod
     def get_category_statistics() -> List[Dict[str, Any]]:
-        """Статистика по категориям (из ЛР4)"""
         query = """
             SELECT 
                 c.name AS category_name,
@@ -473,7 +430,6 @@ class StatisticsRepository:
         with SQLManager() as db:
             stats = db.execute(query)
             
-            # Вычисляем проценты
             total_units = sum(float(s['total_sold'] or 0) for s in stats)
             total_revenue = sum(float(s['total_revenue'] or 0) for s in stats)
             
@@ -488,11 +444,8 @@ class StatisticsRepository:
 
 
 class LogRepository:
-    """Репозиторий для работы с логами"""
-    
     @staticmethod
     def cleanup_old_logs(days: int = 90):
-        """Очистка старых логов (процедура из ЛР5)"""
         query = "CALL cleanup_old_logs(%s)"
         with SQLManager() as db:
             db.cursor.execute(query, (days,))
@@ -500,7 +453,6 @@ class LogRepository:
     
     @staticmethod
     def get_recent_logs(limit: int = 50) -> List[Dict[str, Any]]:
-        """Получение последних логов"""
         query = """
             SELECT 
                 le.id,
@@ -520,7 +472,6 @@ class LogRepository:
     
     @staticmethod
     def log_action(user_id: str, action: str, details: dict, status: str = 'SUCCESS'):
-        """Создание записи в логе"""
         import json
         
         query = """

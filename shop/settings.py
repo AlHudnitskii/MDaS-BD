@@ -1,17 +1,11 @@
-"""
-Django settings for SQL-based shop project
-"""
 from pathlib import Path
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 SECRET_KEY = 'django-insecure--7_9pw6)$g*04h^)s&+_j$za6*%x3iawuc+ies=1y&#gze)_v9'
-
 DEBUG = True
-
 ALLOWED_HOSTS = ['*']
 
-# Application definition
 INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -27,7 +21,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
-    # Наши кастомные middleware
     'shop.sql_middleware.SessionAuthMiddleware',
     'shop.sql_middleware.CartMiddleware',
 ]
@@ -45,7 +38,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.messages.context_processors.messages',
                 
-                # Наши context processors
                 'shop.sql_context_processors.auth_context',
                 'shop.sql_context_processors.cart_context',
             ],
@@ -55,7 +47,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'shop.wsgi.application'
 
-# Database - PostgreSQL с прямым подключением через psycopg2
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -67,7 +58,6 @@ DATABASES = {
     }
 }
 
-# Logging configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -112,7 +102,6 @@ LOGGING = {
     },
 }
 
-# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -128,28 +117,22 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Europe/Minsk'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
-# Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Session configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 86400  # 1 день
 SESSION_SAVE_EVERY_REQUEST = True
 
-# Cart session ID
 CART_SESSION_ID = 'cart'

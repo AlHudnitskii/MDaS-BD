@@ -1,4 +1,4 @@
-{% extends 'main/base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}{% if category %}{{ category.name }}{% else %}Products{% endif %} - Shop{% endblock title %}
@@ -9,7 +9,7 @@
             <h3 class="mb-2">Categories</h3>
             <ul class="list-unstyled">
                 <li {% if not category %}class="selected"{% endif %}>
-                    <a href="{% url "main:product_list" %}" class="text-decoration-none text-dark">All</a>
+                    <a href="{% url "product_list" %}" class="text-decoration-none text-dark">All</a>
                 </li>
                 {% for c in categories %}
                     <li {% if category.slug == c.slug %}class="selected"{% endif %}>
@@ -24,9 +24,9 @@
                 <div class="sorting">
                     <label for="sort_by" class="form-label small text-muted me-2">Sort by:</label>
                     <select id="sort_by" class="form-select form-select-sm" onchange="this.options[this.selectedIndex].value && (window.location = this.options[this.selectedIndex].value);">
-                        <option value="{% url 'main:product_list' %}?sort=name" {% if sort_by == 'name' %}selected{% endif %}>Name</option>
-                        <option value="{% url 'main:product_list' %}?sort=-price" {% if sort_by == '-price' %}selected{% endif %}>Price: High to Low</option>
-                        <option value="{% url 'main:product_list' %}?sort=price" {% if sort_by == 'price' %}selected{% endif %}>Price: Low to High</option>
+                        <option value="{% url 'product_list' %}?sort=name" {% if sort_by == 'name' %}selected{% endif %}>Name</option>
+                        <option value="{% url 'product_list' %}?sort=-price" {% if sort_by == '-price' %}selected{% endif %}>Price: High to Low</option>
+                        <option value="{% url 'product_list' %}?sort=price" {% if sort_by == 'price' %}selected{% endif %}>Price: Low to High</option>
                     </select>
                 </div>
                 <div class="searching">

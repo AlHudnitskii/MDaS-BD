@@ -1,4 +1,4 @@
-{% extends 'main/base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}Login{% endblock title %}
@@ -9,7 +9,7 @@
         <div class="col-md-4">
             <div class="card shadow-sm p-4">
                 <h2 class="mb-3 text-center">Sign In</h2>
-                <form action="{% url "user:login" %}" method="post">
+                <form action="{% url 'login' %}" method="post">
                     {% csrf_token %}
                     {% if request.GET.next %}
                         <input type="hidden" name="next" value="{{ request.GET.next }}">
@@ -29,7 +29,7 @@
                 </form>
                 <hr class="my-3">
                 <p class="text-center mb-0">
-                    Don't have an account? <a href="{% url "user:registration" %}">Create one</a>
+                    Don't have an account? <a href="{% url 'register' %}">Create one</a>
                 </p>
             </div>
         </div>

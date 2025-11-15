@@ -1,4 +1,4 @@
-{% extends 'main/base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}Registration{% endblock title %}
@@ -9,7 +9,7 @@
         <div class="col-md-6">
             <div class="card shadow-sm p-4">
                 <h2 class="mb-3 text-center">Create Account</h2>
-                <form action="{% url "user:registration" %}" method="post">
+                <form action="{% url 'register' %}" method="post">
                     {% csrf_token %}
                     <div class="mb-3">
                         <label for="id_first_name" class="form-label">First Name</label>
