@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+
+{% block title %}Sales Statistics{% endblock %}
+
+{% block extra_head %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .stat-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin: 1rem 0;
+    }
+
+    .stat-label {
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+
+    .chart-container {
+        margin: 2rem 0;
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .bar {
+        display: flex;
+        align-items: center;
+        margin: 1rem 0;
+    }
+
+    .bar-label {
+        width: 150px;
+        font-weight: 600;
+    }
+
+    .bar-visual {
+        flex: 1;
+        height: 30px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        border-radius: 5px;
+        position: relative;
+        transition: all 0.3s;
+    }
+
+    .bar-visual:hover {
+        transform: scaleX(1.02);
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+    }
+
+    .bar-value {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: white;
+        font-weight: bold;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 2rem;
+    }
+
+    th, td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #333;
+    }
+
+    tr:hover {
+        background: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1 style="margin-bottom: 2rem;">📊 Sales Statistics</h1>
+    <p style="color: #666; margin-bottom: 2rem;">
+        Data retrieved using SQL queries from Lab 4
+    </p>
+
+    <!-- Summary Statistics -->
+    <div class="stats-grid">
+        <div class="stat-box">
+            <div class="stat-label">Total Sales</div>
+            <div class="stat-value">${{ total_sales|floatformat:2 }}</div>
+        </div>
+        <div class="stat-box" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="stat-label">Total Orders</div>
+            <div class="stat-value">{{ total_orders }}</div>
+        </div>
+        <div class="stat-box" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="stat-label">Average Order</div>
+            <div class="stat-value">${{ avg_order|floatformat:2 }}</div>
+        </div>
+    </div>
+
+    <!-- Top Products -->
+    <div class="chart-container">
+        <h2 style="margin-bottom: 1.5rem;">🏆 Top Selling Products</h2>
+        <p style="color: #666; margin-bottom: 1.5rem; font-style: italic;">
+            Query: <code style="background: #f8f9fa; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                SELECT p.name, SUM(oi.quantity) as total_sold FROM products p ...
+            </code>
+        </p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Product Name</th>
+                    <th>Units Sold</th>
+                    <th>Revenue</th>
+                    <th>Orders</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in top_products %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ product.name }}</strong></td>
+                    <td>{{ product.total_sold|default:0 }}</td>
+                    <td>${{ product.revenue|default:0|floatformat:2 }}</td>
+                    <td>{{ product.order_count|default:0 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: #999;">No sales data available</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Category Statistics -->
+    <div class="chart-container">
+        <h2 style="margin-bottom: 1.5rem;">📦 Sales by Category</h2>
+        <p style="color: #666; margin-bottom: 1.5rem; font-style: italic;">
+            Query: <code style="background: #f8f9fa; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                SELECT c.name, SUM(oi.quantity), SUM(oi.price * oi.quantity) FROM categories c ...
+            </code>
+        </p>
+
+        {% for stat in category_stats %}
+        <div style="margin-bottom: 2rem;">
+            <h3 style="margin-bottom: 0.5rem;">{{ stat.category_name }}</h3>
+            
+            <!-- Units Bar -->
+            <div class="bar">
+                <div class="bar-label">Units Sold:</div>
+                <div class="bar-visual" style="width: {{ stat.unit_percentage }}%;">
+                    <div class="bar-value">
+                        {{ stat.total_sold|default:0 }} ({{ stat.unit_percentage|floatformat:1 }}%)
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Revenue Bar -->
+            <div class="bar">
+                <div class="bar-label">Revenue:</div>
+                <div class="bar-visual" 
+                     style="width: {{ stat.revenue_percentage }}%; background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="bar-value">
+                        ${{ stat.total_revenue|default:0|floatformat:2 }} ({{ stat.revenue_percentage|floatformat:1 }}%)
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p style="text-align: center; color: #999;">No category data available</p>
+        {% endfor %}
+    </div>
+
+    <!-- SQL Info -->
+    <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-top: 2rem;">
+        <h3 style="margin-bottom: 1rem;">🗄️ SQL Queries Used</h3>
+        <p style="margin-bottom: 0.5rem;">This page uses the following SQL queries from Lab 4:</p>
+        <ul style="margin-left: 2rem; color: #666;">
+            <li>Aggregation with <code>SUM()</code> and <code>COUNT()</code></li>
+            <li><code>INNER JOIN</code> and <code>LEFT JOIN</code> for combining tables</li>
+            <li><code>GROUP BY</code> for category grouping</li>
+            <li><code>ORDER BY</code> for sorting results</li>
+            <li><code>COALESCE()</code> for handling NULL values</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+// Анимация появления баров
+document.addEventListener('DOMContentLoaded', function() {
+    const bars = document.querySelectorAll('.bar-visual');
+    bars.forEach((bar, index) => {
+        const width = bar.style.width;
+        bar.style.width = '0%';
+        setTimeout(() => {
+            bar.style.transition = 'width 1s ease-out';
+            bar.style.width = width;
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}
