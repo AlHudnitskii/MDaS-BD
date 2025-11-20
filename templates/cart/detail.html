@@ -18,14 +18,14 @@
                                 <p>{{ product.name }}</p>
                             </div>
                            <div class="cart-card-q">
-                                <form action="{% url "cart:cart_update" product.id %}" method="post">
+                                <form action="{% url 'cart_update' product.id %}" method="post">
                                     {% csrf_token %}
                                     {{ item.update_quantity_form }}
                                     <label><input type="submit" value="Update" class="update-btn"></label>
                                 </form>
                             </div>
                         </div>
-                        <form action="{% url "cart:cart_remove" product.id %}" method="post">
+                        <form action="{% url 'cart_remove' product.id %}" method="post">
                             <input type="submit" value="Remove" class="remove-btn">
                             {% csrf_token %}
                         </form>
@@ -47,7 +47,7 @@
         <div class="cart-buttons"> <a href="/shop" class="cart-btn">Continue Shopping</a>
             {% with cart_quantity=cart|length %}
                 {% if cart_quantity > 0 %}
-                    <a href="{% url "orders:order_create" %}" class="cart-btn">Checkout</a>
+                    <a href="{% url 'order_create' %}" class="cart-btn">Checkout</a>
                 {% endif %}
             {% endwith %}
         </div>

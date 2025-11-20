@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Reviews - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <a href="/shop/{{ product.slug }}/" class="btn btn-secondary" style="margin-bottom: 2rem;">
+        ← Back to Product
+    </a>
+    
+    <h1 style="margin-bottom: 1rem;">{{ product.name }} - Reviews</h1>
+    
+    <!-- Average Rating -->
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; text-align: center;">
+        <div style="font-size: 3rem; font-weight: bold; margin-bottom: 0.5rem;">
+            {{ avg_rating.avg_rating|default:"0.0" }}
+        </div>
+        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">
+            {% with rating=avg_rating.avg_rating|default:0 %}
+                {% for i in "12345" %}
+                    <span style="color: {% if forloop.counter <= rating %}#ffc107{% else %}rgba(255,255,255,0.3){% endif %};">★</span>
+                {% endfor %}
+            {% endwith %}
+        </div>
+        <div style="font-size: 1.1rem; opacity: 0.9;">
+            Based on {{ avg_rating.reviews_count }} review{{ avg_rating.reviews_count|pluralize }}
+        </div>
+    </div>
+    
+    <!-- Reviews List -->
+    {% for review in reviews %}
+    <div class="card" style="background: #f8f9fa; margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+            <div>
+                <strong style="font-size: 1.1rem;">{{ review.first_name }} {{ review.last_name }}</strong>
+                <span style="color: #999; margin-left: 0.5rem;">@{{ review.username }}</span>
+            </div>
+            <div style="font-size: 0.9rem; color: #999;">
+                {{ review.created_at|date:"Y-m-d H:i" }}
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 1rem;">
+            {% for i in "12345" %}
+                <span style="color: {% if forloop.counter <= review.rating %}#ffc107{% else %}#ddd{% endif %}; font-size: 1.3rem;">★</span>
+            {% endfor %}
+            {% if review.is_verified %}
+            <span style="background: #28a745; color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; margin-left: 0.5rem;">
+                ✓ Verified Purchase
+            </span>
+            {% endif %}
+        </div>
+        
+        <p style="color: #333; line-height: 1.6;">{{ review.comment }}</p>
+    </div>
+    {% empty %}
+    <p style="text-align: center; color: #999; padding: 3rem;">
+        No reviews yet. Be the first to review this product!
+    </p>
+    {% endfor %}
+</div>
+{% endblock %}

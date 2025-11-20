@@ -57,6 +57,17 @@
             </div>
         </div>
 
+                <!-- После блока с профилем добавьте -->
+        <div style="margin-top: 2rem;">
+            <h3 style="margin-bottom: 1rem;">Quick Links</h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                <a href="{% url 'user_notes' %}" class="btn btn-primary">📝 My Notes</a>
+                <a href="{% url 'wishlists' %}" class="btn btn-primary">💝 My Wishlists</a>
+                <a href="{% url 'user_reviews' %}" class="btn btn-primary">⭐ My Reviews</a>
+                <a href="/orders/create/" class="btn btn-success">🛒 My Orders</a>
+            </div>
+        </div>
+
         <div class="col-md-8">
             <div class="bg-white p-3 rounded mb-3">
                 <h6 class="mb-2">Your Orders</h6>

@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}My Reviews{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1 style="margin-bottom: 2rem;">⭐ My Reviews</h1>
+
+    {% for review in reviews %}
+    <div class="card" style="background: #f8f9fa; margin-bottom: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div style="flex: 1;">
+                <h3 style="margin-bottom: 0.5rem;">
+                    <a href="/shop/{{ review.product_slug }}/" style="color: #667eea; text-decoration: none;">
+                        {{ review.product_name }}
+                    </a>
+                </h3>
+                
+                <div style="margin-bottom: 0.5rem;">
+                    {% for i in "12345" %}
+                        <span style="color: {% if forloop.counter <= review.rating %}#ffc107{% else %}#ddd{% endif %}; font-size: 1.2rem;">★</span>
+                    {% endfor %}
+                </div>
+                
+                <p style="color: #666; margin-bottom: 0.5rem;">{{ review.comment }}</p>
+                
+                <div style="font-size: 0.9rem; color: #999;">
+                    Posted: {{ review.created_at|date:"Y-m-d H:i" }}
+                    {% if review.is_verified %}
+                    <span style="background: #28a745; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; margin-left: 0.5rem;">
+                        ✓ Verified
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 0.5rem;">
+                <button onclick="editReview('{{ review.id }}', {{ review.rating }}, '{{ review.comment|escapejs }}')" 
+                        class="btn btn-secondary">Edit</button>
+                <form method="post" action="{% url 'delete_review' review.id %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Delete this review?')">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <p style="text-align: center; color: #999; padding: 2rem;">
+        You haven't written any reviews yet. Purchase products and share your experience!
+    </p>
+    {% endfor %}
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000;">
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%;">
+        <h3 style="margin-bottom: 1rem;">Edit Review</h3>
+        <form id="editForm" method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Rating</label>
+                <div id="editRating" style="font-size: 2rem; margin-bottom: 1rem;">
+                    <span onclick="setRating(1)" style="cursor: pointer; color: #ddd;">★</span>
+                    <span onclick="setRating(2)" style="cursor: pointer; color: #ddd;">★</span>
+                    <span onclick="setRating(3)" style="cursor: pointer; color: #ddd;">★</span>
+                    <span onclick="setRating(4)" style="cursor: pointer; color: #ddd;">★</span>
+                    <span onclick="setRating(5)" style="cursor: pointer; color: #ddd;">★</span>
+                </div>
+                <input type="hidden" id="ratingValue" name="rating" value="5">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Comment</label>
+                <textarea id="editComment" name="comment" class="form-control" rows="6" required></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-success">Update Review</button>
+                <button type="button" onclick="hideEditModal()" class="btn btn-secondary">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentRating = 5;
+
+function editReview(id, rating, comment) {
+    currentRating = rating;
+    document.getElementById('ratingValue').value = rating;
+    document.getElementById('editComment').value = comment;
+    document.getElementById('editForm').action = '/reviews/update/' + id + '/';
+    updateStars();
+    document.getElementById('editModal').style.display = 'block';
+}
+
+function hideEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+function setRating(rating) {
+    currentRating = rating;
+    document.getElementById('ratingValue').value = rating;
+    updateStars();
+}
+
+function updateStars() {
+    const stars = document.querySelectorAll('#editRating span');
+    stars.forEach((star, index) => {
+        star.style.color = index < currentRating ? '#ffc107' : '#ddd';
+    });
+}
+</script>
+{% endblock %}

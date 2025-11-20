@@ -1,9 +1,88 @@
 {% extends 'base.html' %}
-{% load static %}
 
-{% block title %}Home{% endblock title %}
+{% block title %}Home{% endblock %}
 
 {% block content %}
-    <section>
-    </section>
-{% endblock content %}
+<div class="card" style="text-align: center; padding: 3rem;">
+    <h1 style="font-size: 3rem; margin-bottom: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        Welcome to SQL Shop
+    </h1>
+    <p style="font-size: 1.3rem; color: #666; margin-bottom: 2rem;">
+        Powered by Pure SQL & PostgreSQL
+    </p>
+    <a href="/shop/" class="btn btn-primary" style="padding: 1rem 2rem; font-size: 1.2rem;">
+        Browse Products
+    </a>
+</div>
+
+<div class="card">
+    <h2 style="margin-bottom: 2rem;">🔥 Top Selling Products</h2>
+    
+    <div class="grid">
+        {% for product in products %}
+        <div class="product-card">
+            <a href="/shop/{{ product.slug }}/" style="text-decoration: none; color: inherit;">
+                {% if product.image %}
+                <img src="/media/{{ product.image }}" alt="{{ product.name }}" class="product-image">
+                {% else %}
+                <img src="/static/img/noimage.jpg" alt="{{ product.name }}" class="product-image">
+                {% endif %}
+                
+                <div class="product-body">
+                    <h3 class="product-title">{{ product.name }}</h3>
+                    
+                    <div class="product-price">
+                        {% if product.discount > 0 %}
+                            <span class="price-discount">${{ product.price }}</span>
+                            ${{ product.final_price|default:product.price }}
+                        {% else %}
+                            ${{ product.price }}
+                        {% endif %}
+                    </div>
+                    
+                    <div style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">
+                        Sold: {{ product.total_sold|default:0 }} units
+                    </div>
+                </div>
+            </a>
+            
+            <div class="product-body" style="padding-top: 0;">
+                <form method="post" action="/cart/add/{{ product.id }}/">
+                    {% csrf_token %}
+                    <input type="hidden" name="slug" value="{{ product.slug }}">
+                    <input type="hidden" name="quantity" value="1">
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        🛒 Add to Cart
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <p style="grid-column: 1 / -1; text-align: center; color: #999; padding: 2rem;">
+            No products available yet.
+        </p>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center;">
+    <h2 style="margin-bottom: 1rem;">Why Choose SQL Shop?</h2>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; margin-top: 2rem;">
+        <div>
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">⚡</div>
+            <h3>Pure SQL</h3>
+            <p style="opacity: 0.9;">Direct database queries for maximum performance</p>
+        </div>
+        <div>
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">🔒</div>
+            <h3>Secure</h3>
+            <p style="opacity: 0.9;">Parameterized queries prevent SQL injection</p>
+        </div>
+        <div>
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">📊</div>
+            <h3>Full Control</h3>
+            <p style="opacity: 0.9;">Complete control over database operations</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}My Wishlists{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h1>💝 My Wishlists</h1>
+        <button onclick="showCreateForm()" class="btn btn-primary">+ New Wishlist</button>
+    </div>
+
+    <!-- Create Form -->
+    <div id="createForm" style="display: none; margin-bottom: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
+        <h3 style="margin-bottom: 1rem;">Create New Wishlist</h3>
+        <form method="post" action="{% url 'create_wishlist' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Name</label>
+                <input type="text" name="name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="3"></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-success">Create Wishlist</button>
+                <button type="button" onclick="hideCreateForm()" class="btn btn-secondary">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Wishlists Grid -->
+    <div class="grid">
+        {% for wishlist in wishlists %}
+        <div class="card" style="background: white; border: 2px solid #667eea;">
+            <h3 style="margin-bottom: 0.5rem; color: #667eea;">{{ wishlist.name }}</h3>
+            {% if wishlist.description %}
+            <p style="color: #666; margin-bottom: 1rem;">{{ wishlist.description }}</p>
+            {% endif %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <span style="background: #667eea; color: white; padding: 0.3rem 0.8rem; border-radius: 20px;">
+                    {{ wishlist.items_count }} items
+                </span>
+                <span style="color: #999; font-size: 0.9rem;">
+                    {{ wishlist.created_at|date:"Y-m-d" }}
+                </span>
+            </div>
+            <a href="{% url 'wishlist_detail' wishlist.id %}" class="btn btn-primary" style="width: 100%;">
+                View Items
+            </a>
+        </div>
+        {% empty %}
+        <p style="grid-column: 1 / -1; text-align: center; color: #999; padding: 2rem;">
+            No wishlists yet. Create your first wishlist!
+        </p>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function showCreateForm() {
+    document.getElementById('createForm').style.display = 'block';
+}
+
+function hideCreateForm() {
+    document.getElementById('createForm').style.display = 'none';
+}
+</script>
+{% endblock %}

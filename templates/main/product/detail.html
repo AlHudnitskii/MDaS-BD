@@ -1,38 +1,120 @@
 {% extends 'base.html' %}
-{% load static %}
 
-{% block title %}
-    {{ product.name }}
-{% endblock title %}
+{% block title %}{{ product.name }}{% endblock %}
 
 {% block content %}
-    <div class="detail-product">
-        <div class="detail-img">
-            <img class="detail-image" src="{{ product.image.url }}" alt="{{ product.name }}" width="200" height="200" style="object-fit: contain;">
+<div class="card">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin-bottom: 3rem;">
+        <div>
+            {% if product.image %}
+            <img src="/media/{{ product.image }}" alt="{{ product.name }}" style="width: 100%; border-radius: 12px;">
+            {% else %}
+            <img src="/static/img/noimage.jpg" alt="{{ product.name }}" style="width: 100%; border-radius: 12px;">
+            {% endif %}
         </div>
-        <div class="detail-description">
-            <h2>{{ product.name }}</h2>
-            <h3 class="mb-2">Category: {{ product.category }}</h3>
-            <p class="mb-3">Description: {{ product.description|linebreaks }}</p>
-            <div class="d-flex align-items-center mb-3">
-                <h4 class="me-3">Price:</h4>
-                {% if product.discount %}
-                    <div class="cart-discount">
-                        <p class="line text-muted me-2">$ {{ product.price }}</p>
-                        <p class="price fw-bold">$ {{ product.sell_price }}</p>
-                    </div>
-                {% else %}
-                    <p class="price fw-bold">$ {{ product.price }}</p>
-                {% endif %}
+        
+        <div>
+            <h1 style="margin-bottom: 1rem;">{{ product.name }}</h1>
+            <div style="color: #666; margin-bottom: 1rem;">
+                Category: <span style="color: #667eea;">{{ product.category_name }}</span>
             </div>
-            <form action="{% url "cart:cart_add" product.id %}" class="qform" method="post">
-                <div class="cart-form mb-3">
-                    <label for="{{ cart_product_form.quantity.id_for_label }}" class="form-label">Quantity:</label>
-                    {{ cart_product_form }}
-                    {% csrf_token %}
+            
+            <div style="margin-bottom: 1.5rem;">
+                <div class="product-price" style="margin-bottom: 0.5rem;">
+                    {% if product.discount > 0 %}
+                        <span class="price-discount">${{ product.price }}</span>
+                        ${{ product.final_price }}
+                        <span style="background: #ff4757; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.9rem; margin-left: 0.5rem;">
+                            -{{ product.discount|floatformat:0 }}%
+                        </span>
+                    {% else %}
+                        ${{ product.price }}
+                    {% endif %}
                 </div>
-                <button type="submit" class="add-to-cart-btn btn btn-primary">Add to cart</button>
+            </div>
+            
+            <p style="color: #666; margin-bottom: 2rem; line-height: 1.8;">
+                {{ product.description }}
+            </p>
+            
+            <form method="post" action="/cart/add/{{ product.id }}/" style="margin-bottom: 2rem;">
+                {% csrf_token %}
+                <input type="hidden" name="slug" value="{{ product.slug }}">
+                <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+                    <label style="font-weight: 600;">Quantity:</label>
+                    <input type="number" name="quantity" value="1" min="1" max="10" 
+                           style="width: 80px; padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem;">
+                    🛒 Add to Cart
+                </button>
             </form>
+            
+            <!-- Add to Wishlist (если пользователь авторизован) -->
+            {% if user_authenticated %}
+            <div style="margin-top: 1rem;">
+                <button onclick="showWishlistModal()" class="btn btn-secondary" style="width: 100%;">
+                    💝 Add to Wishlist
+                </button>
+            </div>
+            {% endif %}
         </div>
     </div>
-{% endblock content %}
+    
+    <!-- Reviews Section -->
+    <div style="border-top: 2px solid #e0e0e0; padding-top: 2rem;">
+        <h2 style="margin-bottom: 1.5rem;">Customer Reviews</h2>
+        
+        <a href="/product/{{ product.slug }}/reviews/" class="btn btn-primary" style="margin-bottom: 2rem;">
+            View All Reviews
+        </a>
+        
+        {% if user_authenticated %}
+        <div style="background: #f8f9fa; padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+            <h3 style="margin-bottom: 1rem;">Write a Review</h3>
+            <form method="post" action="{% url 'create_review' product.id %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label">Rating</label>
+                    <div id="rating" style="font-size: 2rem; margin-bottom: 1rem;">
+                        <span onclick="setRating(1)" style="cursor: pointer; color: #ddd;">★</span>
+                        <span onclick="setRating(2)" style="cursor: pointer; color: #ddd;">★</span>
+                        <span onclick="setRating(3)" style="cursor: pointer; color: #ddd;">★</span>
+                        <span onclick="setRating(4)" style="cursor: pointer; color: #ddd;">★</span>
+                        <span onclick="setRating(5)" style="cursor: pointer; color: #ddd;">★</span>
+                    </div>
+                    <input type="hidden" id="ratingValue" name="rating" value="5">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Your Review</label>
+                    <textarea name="comment" class="form-control" rows="4" required placeholder="Share your experience with this product..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Submit Review</button>
+            </form>
+        </div>
+        {% else %}
+        <p style="text-align: center; padding: 2rem; background: #f8f9fa; border-radius: 12px;">
+            <a href="{% url 'login' %}" style="color: #667eea;">Login</a> to write a review
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+let currentRating = 5;
+
+function setRating(rating) {
+    currentRating = rating;
+    document.getElementById('ratingValue').value = rating;
+    const stars = document.querySelectorAll('#rating span');
+    stars.forEach((star, index) => {
+        star.style.color = index < rating ? '#ffc107' : '#ddd';
+    });
+}
+
+// Initialize with 5 stars
+document.addEventListener('DOMContentLoaded', () => {
+    setRating(5);
+});
+</script>
+{% endblock %}

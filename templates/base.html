@@ -294,6 +294,8 @@
                     {% if user_authenticated %}
                     <li><a href="/profile/">👤 {{ username }}</a></li>
                     <li><a href="/logout/">Logout</a></li>
+                    <li><a href="{% url 'wishlists' %}">Wishlists</a></li>
+                    <li><a href="{% url 'user_notes' %}">Notes</a></li>
                     {% else %}
                     <li><a href="/login/">Login</a></li>
                     <li><a href="/register/">Register</a></li>

@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}My Notes{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h1>📝 My Notes</h1>
+        <button onclick="showCreateForm()" class="btn btn-primary">+ New Note</button>
+    </div>
+
+    <!-- Create Note Form -->
+    <div id="createForm" style="display: none; margin-bottom: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
+        <h3 style="margin-bottom: 1rem;">Create New Note</h3>
+        <form method="post" action="{% url 'create_note' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Title</label>
+                <input type="text" name="title" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Content</label>
+                <textarea name="content" class="form-control" rows="4" required></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-success">Save Note</button>
+                <button type="button" onclick="hideCreateForm()" class="btn btn-secondary">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Notes List -->
+    <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
+        {% for note in notes %}
+        <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <h3 style="margin-bottom: 0.5rem;">{{ note.title }}</h3>
+            <p style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 1rem;">
+                {{ note.content|truncatewords:30 }}
+            </p>
+            <div style="font-size: 0.8rem; opacity: 0.8; margin-bottom: 1rem;">
+                Updated: {{ note.updated_at|date:"Y-m-d H:i" }}
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button onclick="editNote('{{ note.id }}', '{{ note.title|escapejs }}', '{{ note.content|escapejs }}')" 
+                        class="btn" style="background: white; color: #667eea;">Edit</button>
+                <form method="post" action="{% url 'delete_note' note.id %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Delete this note?')">Delete</button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <p style="grid-column: 1 / -1; text-align: center; color: #999; padding: 2rem;">
+            No notes yet. Create your first note!
+        </p>
+        {% endfor %}
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%;">
+            <h3 style="margin-bottom: 1rem;">Edit Note</h3>
+            <form id="editForm" method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label">Title</label>
+                    <input type="text" id="editTitle" name="title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Content</label>
+                    <textarea id="editContent" name="content" class="form-control" rows="6" required></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button type="submit" class="btn btn-success">Update Note</button>
+                    <button type="button" onclick="hideEditModal()" class="btn btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function showCreateForm() {
+    document.getElementById('createForm').style.display = 'block';
+}
+
+function hideCreateForm() {
+    document.getElementById('createForm').style.display = 'none';
+}
+
+function editNote(id, title, content) {
+    document.getElementById('editTitle').value = title;
+    document.getElementById('editContent').value = content;
+    document.getElementById('editForm').action = '/notes/update/' + id + '/';
+    document.getElementById('editModal').style.display = 'block';
+}
+
+function hideEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+</script>
+{% endblock %}
