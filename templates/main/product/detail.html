@@ -46,15 +46,14 @@
                            style="width: 80px; padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px;">
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem;">
-                    🛒 Add to Cart
+                    Add to Cart
                 </button>
             </form>
             
-            <!-- Add to Wishlist (если пользователь авторизован) -->
             {% if user_authenticated %}
             <div style="margin-top: 1rem;">
                 <button onclick="showWishlistModal()" class="btn btn-secondary" style="width: 100%;">
-                    💝 Add to Wishlist
+                    Add to Wishlist
                 </button>
             </div>
             {% endif %}
@@ -112,7 +111,6 @@ function setRating(rating) {
     });
 }
 
-// Initialize with 5 stars
 document.addEventListener('DOMContentLoaded', () => {
     setRating(5);
 });

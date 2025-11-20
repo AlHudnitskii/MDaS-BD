@@ -5,11 +5,10 @@
 {% block content %}
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h1>📝 My Notes</h1>
+        <h1>My Notes</h1>
         <button onclick="showCreateForm()" class="btn btn-primary">+ New Note</button>
     </div>
 
-    <!-- Create Note Form -->
     <div id="createForm" style="display: none; margin-bottom: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
         <h3 style="margin-bottom: 1rem;">Create New Note</h3>
         <form method="post" action="{% url 'create_note' %}">
@@ -29,7 +28,6 @@
         </form>
     </div>
 
-    <!-- Notes List -->
     <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
         {% for note in notes %}
         <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
@@ -56,7 +54,6 @@
         {% endfor %}
     </div>
 
-    <!-- Edit Modal -->
     <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000;">
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%;">
             <h3 style="margin-bottom: 1rem;">Edit Note</h3>

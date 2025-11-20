@@ -1,26 +1,19 @@
-"""
-SQL Manager для прямого взаимодействия с базой данных
-Все операции выполняются через чистый SQL
-"""
 from typing import List, Dict, Any, Optional
-from decimal import Decimal
+
 import psycopg2
+import logging
 from psycopg2.extras import RealDictCursor
 from django.conf import settings
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 class SQLManager:
-    """Менеджер для выполнения SQL-запросов напрямую к БД"""
-    
     def __init__(self):
         self.connection = None
         self.cursor = None
     
     def __enter__(self):
-        """Открытие соединения с БД"""
         self.connection = psycopg2.connect(
             dbname=settings.DATABASES['default']['NAME'],
             user=settings.DATABASES['default']['USER'],
@@ -32,14 +25,12 @@ class SQLManager:
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Закрытие соединения"""
         if self.cursor:
             self.cursor.close()
         if self.connection:
             self.connection.close()
     
     def execute(self, query: str, params: tuple = None) -> List[Dict[str, Any]]:
-        """Выполнение SELECT запроса"""
         try:
             logger.info(f"Executing SQL: {query[:100]}... with params: {params}")
             self.cursor.execute(query, params)
@@ -51,7 +42,6 @@ class SQLManager:
             raise
     
     def execute_one(self, query: str, params: tuple = None) -> Optional[Dict[str, Any]]:
-        """Выполнение SELECT запроса с получением одной записи"""
         try:
             logger.info(f"Executing SQL (one): {query[:100]}...")
             self.cursor.execute(query, params)
@@ -62,7 +52,6 @@ class SQLManager:
             raise
     
     def execute_update(self, query: str, params: tuple = None) -> int:
-        """Выполнение INSERT/UPDATE/DELETE запроса"""
         try:
             logger.info(f"Executing UPDATE SQL: {query[:100]}...")
             self.cursor.execute(query, params)
@@ -76,7 +65,6 @@ class SQLManager:
             raise
     
     def call_procedure(self, proc_name: str, params: tuple = None):
-        """Вызов хранимой процедуры"""
         try:
             logger.info(f"Calling procedure: {proc_name} with params: {params}")
             self.cursor.callproc(proc_name, params)
@@ -89,11 +77,8 @@ class SQLManager:
 
 
 class UserRepository:
-    """Репозиторий для работы с пользователями через SQL"""
-    
     @staticmethod
     def get_all_active_users() -> List[Dict[str, Any]]:
-        """Получение всех активных пользователей"""
         query = """
             SELECT id, username, email, first_name, last_name, 
                    is_active, is_superuser, date_joined
@@ -106,7 +91,6 @@ class UserRepository:
     
     @staticmethod
     def get_user_by_username(username: str) -> Optional[Dict[str, Any]]:
-        """Получение пользователя по username"""
         query = """
             SELECT id, username, email, first_name, last_name,
                    password, is_active, is_superuser, date_joined, last_login
@@ -117,17 +101,15 @@ class UserRepository:
             return db.execute_one(query, (username,))
     
     @staticmethod
-    def create_user(username: str, email: str, password: str, 
-                   first_name: str, last_name: str) -> Dict[str, Any]:
-        """Создание нового пользователя"""
+    def create_user(username: str, email: str, password: str, first_name: str, last_name: str) -> Dict[str, Any]:
         query = """
             INSERT INTO users (
                 id, username, password, email, first_name, last_name,
-                is_active, is_staff, is_superuser, date_joined
+                is_active, is_superuser, date_joined
             )
             VALUES (
                 gen_random_uuid(), %s, hash_password(%s), %s, %s, %s,
-                TRUE, FALSE, FALSE, NOW()
+                TRUE, FALSE, NOW()
             )
             RETURNING id, username, email, first_name, last_name
         """
@@ -136,7 +118,6 @@ class UserRepository:
     
     @staticmethod
     def update_user_profile(user_id: str, first_name: str, last_name: str, email: str):
-        """Обновление профиля пользователя"""
         query = """
             UPDATE users
             SET first_name = %s, last_name = %s, email = %s
@@ -147,7 +128,6 @@ class UserRepository:
     
     @staticmethod
     def get_users_with_roles() -> List[Dict[str, Any]]:
-        """Получение пользователей с их ролями (из ЛР4)"""
         query = """
             SELECT DISTINCT
                 u.id,
@@ -167,11 +147,8 @@ class UserRepository:
 
 
 class ProductRepository:
-    """Репозиторий для работы с товарами через SQL"""
-    
     @staticmethod
     def get_all_products(category_slug: str = None, sort_by: str = 'name') -> List[Dict[str, Any]]:
-        """Получение всех доступных товаров с фильтрацией"""
         base_query = """
             SELECT 
                 p.id,
@@ -210,7 +187,6 @@ class ProductRepository:
     
     @staticmethod
     def get_product_by_slug(slug: str) -> Optional[Dict[str, Any]]:
-        """Получение товара по slug"""
         query = """
             SELECT 
                 p.id,
@@ -232,7 +208,6 @@ class ProductRepository:
     
     @staticmethod
     def search_products(search_query: str) -> List[Dict[str, Any]]:
-        """Поиск товаров (из ЛР4)"""
         query = """
             SELECT 
                 p.id,
@@ -254,8 +229,6 @@ class ProductRepository:
     
     @staticmethod
     def get_top_products(limit: int = 10) -> List[Dict[str, Any]]:
-        """Получение топ продуктов (используем процедуру из ЛР5)"""
-        # Вызываем процедуру через обычный запрос
         query = """
             SELECT 
                 p.id,
@@ -278,11 +251,8 @@ class ProductRepository:
 
 
 class CategoryRepository:
-    """Репозиторий для работы с категориями"""
-    
     @staticmethod
     def get_all_categories() -> List[Dict[str, Any]]:
-        """Получение всех категорий"""
         query = """
             SELECT id, name, slug
             FROM categories
@@ -293,7 +263,6 @@ class CategoryRepository:
     
     @staticmethod
     def get_category_by_slug(slug: str) -> Optional[Dict[str, Any]]:
-        """Получение категории по slug"""
         query = """
             SELECT id, name, slug
             FROM categories
@@ -304,20 +273,16 @@ class CategoryRepository:
 
 
 class OrderRepository:
-    """Репозиторий для работы с заказами"""
-    
     @staticmethod
     def create_order_with_items(user_id: str, first_name: str, last_name: str,
                                email: str, city: str, address: str, 
                                postal_code: str, items: List[Dict]) -> str:
-        """Создание заказа с товарами (используем процедуру из ЛР5)"""
         import json
         
-        # Подготавливаем JSONB для процедуры
         items_json = json.dumps(items)
         
         query = """
-            CALL create_order_with_items(
+            SELECT create_one_order_with_items(
                 %s::uuid, %s, %s, %s, %s, %s, %s, %s::jsonb
             )
         """
@@ -329,7 +294,6 @@ class OrderRepository:
             ))
             db.connection.commit()
             
-            # Получаем ID последнего созданного заказа
             db.cursor.execute("""
                 SELECT id FROM orders 
                 WHERE user_id = %s::uuid 
@@ -341,7 +305,6 @@ class OrderRepository:
     
     @staticmethod
     def get_user_orders(user_id: str) -> List[Dict[str, Any]]:
-        """Получение заказов пользователя"""
         query = """
             SELECT 
                 o.id,
@@ -366,7 +329,6 @@ class OrderRepository:
     
     @staticmethod
     def get_order_details(order_id: str) -> Dict[str, Any]:
-        """Получение деталей заказа"""
         query = """
             SELECT 
                 o.id,
@@ -406,7 +368,6 @@ class OrderRepository:
     
     @staticmethod
     def process_payment(order_id: str):
-        """Обработка оплаты заказа (процедура из ЛР5)"""
         query = "CALL process_payment(%s::uuid)"
         with SQLManager() as db:
             db.cursor.execute(query, (order_id,))
@@ -414,11 +375,8 @@ class OrderRepository:
 
 
 class StatisticsRepository:
-    """Репозиторий для статистики"""
-    
     @staticmethod
     def get_sales_statistics() -> Dict[str, Any]:
-        """Получение статистики продаж"""
         total_sales_query = """
             SELECT COALESCE(SUM(oi.price * oi.quantity), 0) as total
             FROM order_items oi
@@ -456,7 +414,6 @@ class StatisticsRepository:
     
     @staticmethod
     def get_category_statistics() -> List[Dict[str, Any]]:
-        """Статистика по категориям (из ЛР4)"""
         query = """
             SELECT 
                 c.name AS category_name,
@@ -473,7 +430,6 @@ class StatisticsRepository:
         with SQLManager() as db:
             stats = db.execute(query)
             
-            # Вычисляем проценты
             total_units = sum(float(s['total_sold'] or 0) for s in stats)
             total_revenue = sum(float(s['total_revenue'] or 0) for s in stats)
             
@@ -488,11 +444,8 @@ class StatisticsRepository:
 
 
 class LogRepository:
-    """Репозиторий для работы с логами"""
-    
     @staticmethod
     def cleanup_old_logs(days: int = 90):
-        """Очистка старых логов (процедура из ЛР5)"""
         query = "CALL cleanup_old_logs(%s)"
         with SQLManager() as db:
             db.cursor.execute(query, (days,))
@@ -500,7 +453,6 @@ class LogRepository:
     
     @staticmethod
     def get_recent_logs(limit: int = 50) -> List[Dict[str, Any]]:
-        """Получение последних логов"""
         query = """
             SELECT 
                 le.id,
@@ -520,7 +472,6 @@ class LogRepository:
     
     @staticmethod
     def log_action(user_id: str, action: str, details: dict, status: str = 'SUCCESS'):
-        """Создание записи в логе"""
         import json
         
         query = """
@@ -532,12 +483,9 @@ class LogRepository:
             db.execute_update(query, (user_id, action, json.dumps(details), status))
 
 
-class UserNoteRepository:
-    """Репозиторий для работы с заметками пользователей"""
-    
+class UserNoteRepository:  
     @staticmethod
     def create_note(user_id: str, title: str, content: str) -> Dict[str, Any]:
-        """Создание заметки"""
         query = """
             INSERT INTO user_notes (user_id, title, content, created_at, updated_at)
             VALUES (%s::uuid, %s, %s, NOW(), NOW())
@@ -548,7 +496,6 @@ class UserNoteRepository:
     
     @staticmethod
     def get_user_notes(user_id: str) -> List[Dict[str, Any]]:
-        """Получение всех заметок пользователя"""
         query = """
             SELECT id, title, content, created_at, updated_at
             FROM user_notes
@@ -560,7 +507,6 @@ class UserNoteRepository:
     
     @staticmethod
     def get_note_by_id(note_id: str) -> Optional[Dict[str, Any]]:
-        """Получение заметки по ID"""
         query = """
             SELECT id, user_id, title, content, created_at, updated_at
             FROM user_notes
@@ -571,7 +517,6 @@ class UserNoteRepository:
     
     @staticmethod
     def update_note(note_id: str, title: str, content: str):
-        """Обновление заметки"""
         query = """
             UPDATE user_notes
             SET title = %s, content = %s, updated_at = NOW()
@@ -582,18 +527,14 @@ class UserNoteRepository:
     
     @staticmethod
     def delete_note(note_id: str):
-        """Удаление заметки"""
         query = "DELETE FROM user_notes WHERE id = %s::uuid"
         with SQLManager() as db:
             return db.execute_update(query, (note_id,))
 
 
-class WishlistRepository:
-    """Репозиторий для работы с wishlist"""
-    
+class WishlistRepository:   
     @staticmethod
     def create_wishlist(user_id: str, name: str, description: str = '') -> Dict[str, Any]:
-        """Создание wishlist"""
         query = """
             INSERT INTO wishlists (user_id, name, description, created_at, updated_at)
             VALUES (%s::uuid, %s, %s, NOW(), NOW())
@@ -604,7 +545,6 @@ class WishlistRepository:
     
     @staticmethod
     def get_user_wishlists(user_id: str) -> List[Dict[str, Any]]:
-        """Получение всех wishlist пользователя"""
         query = """
             SELECT 
                 w.id,
@@ -623,7 +563,6 @@ class WishlistRepository:
     
     @staticmethod
     def get_wishlist_items(wishlist_id: str) -> List[Dict[str, Any]]:
-        """Получение товаров из wishlist"""
         query = """
             SELECT 
                 wi.id as wishlist_item_id,
@@ -647,7 +586,6 @@ class WishlistRepository:
     
     @staticmethod
     def add_to_wishlist(wishlist_id: str, product_id: str):
-        """Добавление товара в wishlist"""
         query = """
             INSERT INTO wishlist_items (wishlist_id, product_id, created_at, updated_at)
             VALUES (%s::uuid, %s::uuid, NOW(), NOW())
@@ -659,25 +597,20 @@ class WishlistRepository:
     
     @staticmethod
     def remove_from_wishlist(wishlist_item_id: str):
-        """Удаление товара из wishlist"""
         query = "DELETE FROM wishlist_items WHERE id = %s::uuid"
         with SQLManager() as db:
             return db.execute_update(query, (wishlist_item_id,))
     
     @staticmethod
     def delete_wishlist(wishlist_id: str):
-        """Удаление wishlist"""
         query = "DELETE FROM wishlists WHERE id = %s::uuid"
         with SQLManager() as db:
             return db.execute_update(query, (wishlist_id,))
 
 
 class ProductReviewRepository:
-    """Репозиторий для работы с отзывами на товары"""
-    
     @staticmethod
     def create_review(product_id: str, user_id: str, rating: int, comment: str) -> Dict[str, Any]:
-        """Создание отзыва"""
         query = """
             INSERT INTO product_reviews 
             (product_id, user_id, rating, comment, created_at, updated_at, is_verified)
@@ -689,7 +622,6 @@ class ProductReviewRepository:
     
     @staticmethod
     def get_product_reviews(product_id: str) -> List[Dict[str, Any]]:
-        """Получение всех отзывов на товар"""
         query = """
             SELECT 
                 pr.id,
@@ -710,7 +642,6 @@ class ProductReviewRepository:
     
     @staticmethod
     def get_user_reviews(user_id: str) -> List[Dict[str, Any]]:
-        """Получение всех отзывов пользователя"""
         query = """
             SELECT 
                 pr.id,
@@ -730,7 +661,6 @@ class ProductReviewRepository:
     
     @staticmethod
     def update_review(review_id: str, rating: int, comment: str):
-        """Обновление отзыва"""
         query = """
             UPDATE product_reviews
             SET rating = %s, comment = %s, updated_at = NOW()
@@ -741,14 +671,12 @@ class ProductReviewRepository:
     
     @staticmethod
     def delete_review(review_id: str):
-        """Удаление отзыва"""
         query = "DELETE FROM product_reviews WHERE id = %s::uuid"
         with SQLManager() as db:
             return db.execute_update(query, (review_id,))
     
     @staticmethod
     def get_product_average_rating(product_id: str) -> Dict[str, Any]:
-        """Получение средней оценки товара"""
         query = """
             SELECT 
                 ROUND(AVG(rating), 1) as avg_rating,
@@ -762,11 +690,8 @@ class ProductReviewRepository:
 
 
 class ProductImageRepository:
-    """Репозиторий для работы с изображениями товаров"""
-    
     @staticmethod
     def get_product_images(product_id: str) -> List[Dict[str, Any]]:
-        """Получение всех изображений товара"""
         query = """
             SELECT id, image, alt_text, is_main, display_order, created_at
             FROM product_images
@@ -778,7 +703,6 @@ class ProductImageRepository:
     
     @staticmethod
     def add_product_image(product_id: str, image_url: str, alt_text: str = '', is_main: bool = False):
-        """Добавление изображения товару"""
         query = """
             INSERT INTO product_images 
             (product_id, image, alt_text, is_main, created_at)

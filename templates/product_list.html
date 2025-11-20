@@ -7,7 +7,6 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <h1>{% if category %}{{ category.name }}{% else %}All Products{% endif %}</h1>
         
-        <!-- Search Form -->
         <form method="get" style="display: flex; gap: 0.5rem;">
             <input type="text" name="q" value="{{ query|default:'' }}" 
                    class="form-control" placeholder="Search products..." 
@@ -16,7 +15,6 @@
         </form>
     </div>
 
-    <!-- Category Filter -->
     <div style="margin-bottom: 2rem;">
         <strong>Categories:</strong>
         <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem;">
@@ -32,7 +30,6 @@
         </div>
     </div>
 
-    <!-- Sort Options -->
     <div style="margin-bottom: 2rem;">
         <label for="sort-select"><strong>Sort by:</strong></label>
         <select id="sort-select" onchange="window.location.href='?sort=' + this.value" 
@@ -44,7 +41,6 @@
         </select>
     </div>
 
-    <!-- Products Grid -->
     <div class="grid">
         {% for product in products %}
         <div class="product-card">

@@ -10,7 +10,6 @@
     
     <h1 style="margin-bottom: 1rem;">{{ product.name }} - Reviews</h1>
     
-    <!-- Average Rating -->
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; text-align: center;">
         <div style="font-size: 3rem; font-weight: bold; margin-bottom: 0.5rem;">
             {{ avg_rating.avg_rating|default:"0.0" }}
@@ -27,7 +26,6 @@
         </div>
     </div>
     
-    <!-- Reviews List -->
     {% for review in reviews %}
     <div class="card" style="background: #f8f9fa; margin-bottom: 1.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">

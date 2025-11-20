@@ -5,11 +5,10 @@
 {% block content %}
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h1>💝 Wishlist Items</h1>
+        <h1>Wishlist Items</h1>
         <a href="{% url 'wishlists' %}" class="btn btn-secondary">← Back to Wishlists</a>
     </div>
 
-    <!-- Items Grid -->
     <div class="grid">
         {% for item in items %}
         <div class="product-card">
@@ -41,13 +40,13 @@
                             <input type="hidden" name="slug" value="{{ item.slug }}">
                             <input type="hidden" name="quantity" value="1">
                             <button type="submit" class="btn btn-primary" style="width: 100%;">
-                                🛒 Add to Cart
+                                Add to Cart
                             </button>
                         </form>
                         <form method="post" action="{% url 'remove_from_wishlist' item.wishlist_item_id %}">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-danger" title="Remove">
-                                🗑️
+                                Remove
                             </button>
                         </form>
                     </div>

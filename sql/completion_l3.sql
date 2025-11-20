@@ -85,8 +85,9 @@ INSERT INTO "wishlist_items" (id, wishlist_id, product_id, created_at, updated_a
 ('550e8400-e29b-41d4-a716-446655441104'::uuid, '550e8400-e29b-41d4-a716-446655441003'::uuid, '550e8400-e29b-41d4-a716-446655440502'::uuid, NOW(), NOW());
 
 
-UPDATE users SET password = hash_password('admin123') WHERE username = 'admin';
+UPDATE users SET password = hash_password('admin') WHERE username = 'admin';
 UPDATE users SET password = hash_password('john123') WHERE username = 'john_doe';
 UPDATE users SET password = hash_password('jane123') WHERE username = 'jane_smith';
 UPDATE users SET password = hash_password('bob123') WHERE username = 'bob_wilson';
 UPDATE users SET password = hash_password('alice123') WHERE username = 'alice_brown';
+

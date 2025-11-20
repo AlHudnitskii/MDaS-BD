@@ -2,110 +2,10 @@
 
 {% block title %}Shopping Cart{% endblock %}
 
-{% block extra_head %}
-<style>
-    .cart-item {
-        display: flex;
-        gap: 2rem;
-        padding: 1.5rem;
-        background: white;
-        border-radius: 12px;
-        margin-bottom: 1rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        align-items: center;
-    }
-
-    .cart-item-image {
-        width: 120px;
-        height: 120px;
-        object-fit: cover;
-        border-radius: 8px;
-    }
-
-    .cart-item-info {
-        flex: 1;
-    }
-
-    .cart-item-title {
-        font-size: 1.3rem;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-    }
-
-    .cart-item-price {
-        font-size: 1.5rem;
-        color: #667eea;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
-    }
-
-    .cart-item-quantity {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-top: 1rem;
-    }
-
-    .quantity-btn {
-        width: 35px;
-        height: 35px;
-        border-radius: 50%;
-        border: 2px solid #667eea;
-        background: white;
-        color: #667eea;
-        font-size: 1.2rem;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-
-    .quantity-btn:hover {
-        background: #667eea;
-        color: white;
-    }
-
-    .quantity-display {
-        font-size: 1.2rem;
-        font-weight: 600;
-        min-width: 40px;
-        text-align: center;
-    }
-
-    .cart-total {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 12px;
-        margin-top: 2rem;
-        text-align: right;
-    }
-
-    .total-label {
-        font-size: 1.2rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .total-value {
-        font-size: 2.5rem;
-        font-weight: bold;
-    }
-
-    .empty-cart {
-        text-align: center;
-        padding: 4rem 2rem;
-        color: #999;
-    }
-
-    .empty-cart-icon {
-        font-size: 5rem;
-        margin-bottom: 1rem;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h1>🛒 Shopping Cart</h1>
+        <h1>Shopping Cart</h1>
         {% if cart_items %}
         <span style="background: #667eea; color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600;">
             {{ cart_items|length }} item{% if cart_items|length != 1 %}s{% endif %}
@@ -114,7 +14,6 @@
     </div>
 
     {% if cart_items %}
-        <!-- Cart Items -->
         <div>
             {% for item in cart_items %}
             <div class="cart-item">
@@ -150,14 +49,13 @@
                 <form method="post" action="/cart/remove/{{ item.product.id }}/" style="margin-left: auto;">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-danger">
-                        🗑️ Remove
+                        Remove
                     </button>
                 </form>
             </div>
             {% endfor %}
         </div>
 
-        <!-- Cart Total -->
         <div class="cart-total">
             <div class="total-label">Total Amount:</div>
             <div class="total-value">${{ total_price|floatformat:2 }}</div>
@@ -170,7 +68,6 @@
         </div>
 
     {% else %}
-        <!-- Empty Cart -->
         <div class="empty-cart">
             <h2 style="margin-bottom: 1rem;">Your cart is empty</h2>
             <p style="margin-bottom: 2rem;">Add some products to get started!</p>
@@ -183,7 +80,6 @@
 function updateQuantity(productId, newQuantity) {
     if (newQuantity < 1) {
         if (confirm('Remove this item from cart?')) {
-            // Submit remove form
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = '/cart/remove/' + productId + '/';
@@ -199,7 +95,6 @@ function updateQuantity(productId, newQuantity) {
             form.submit();
         }
     } else {
-        // Update quantity via form submission
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '/cart/update/' + productId + '/';

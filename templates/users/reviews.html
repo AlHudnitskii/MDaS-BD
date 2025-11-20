@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="card">
-    <h1 style="margin-bottom: 2rem;">⭐ My Reviews</h1>
+    <h1 style="margin-bottom: 2rem;">My Reviews</h1>
 
     {% for review in reviews %}
     <div class="card" style="background: #f8f9fa; margin-bottom: 1rem;">
@@ -51,7 +51,6 @@
     {% endfor %}
 </div>
 
-<!-- Edit Modal -->
 <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000;">
     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%;">
         <h3 style="margin-bottom: 1rem;">Edit Review</h3>

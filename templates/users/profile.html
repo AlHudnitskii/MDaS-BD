@@ -45,92 +45,46 @@
                     <button type="submit" class="btn btn-primary btn-sm w-100 mb-2" name="profile_submit">Save</button>
                 </form>
 
-                <form method="post">
-                    {% csrf_token %}
-                    <label class="form-label small text-muted">Timezone</label>
-                    {{ timezone_form }}
-                    <button type="submit" class="btn btn-secondary btn-sm w-100" name="timezone_submit">Update Timezone</button>
-                </form>
-
                 <hr class="my-2">
-                <a class="btn btn-danger btn-sm w-100" href="{% url 'user:logout' %}">Logout</a>
+                <a class="btn btn-danger btn-sm w-100" href="{% url 'logout' %}">Logout</a>
             </div>
         </div>
 
-                <!-- После блока с профилем добавьте -->
         <div style="margin-top: 2rem;">
             <h3 style="margin-bottom: 1rem;">Quick Links</h3>
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-                <a href="{% url 'user_notes' %}" class="btn btn-primary">📝 My Notes</a>
-                <a href="{% url 'wishlists' %}" class="btn btn-primary">💝 My Wishlists</a>
-                <a href="{% url 'user_reviews' %}" class="btn btn-primary">⭐ My Reviews</a>
-                <a href="/orders/create/" class="btn btn-success">🛒 My Orders</a>
+                <a href="{% url 'user_notes' %}" class="btn btn-primary">My Notes</a>
+                <a href="{% url 'wishlists' %}" class="btn btn-primary">My Wishlists</a>
+                <a href="{% url 'user_reviews' %}" class="btn btn-primary">My Reviews</a>
+                <a href="/orders/create/" class="btn btn-success">My Orders</a>
             </div>
         </div>
 
         <div class="col-md-8">
             <div class="bg-white p-3 rounded mb-3">
-                <h6 class="mb-2">Your Orders</h6>
+                <h6 class="mb-2">My orders</h6>
                 {% if orders %}
                     <ul class="list-unstyled">
                         {% for order in orders %}
                             <li class="mb-2 border-bottom pb-2">
-                                <small class="text-muted">Order № {{ order.id }} - {{ order.created|timezone:user.timezone_info.timezone }}</small>
-                                {% for item in order.items.all %}
-                                    <p class="mb-0 small">{{ item.product.name }} (Qty: {{ item.quantity }}, ${{ item.price }})</p>
+                                <small class="text-muted">
+                                    Order # {{ order.id }} 
+                                    — {{ order.created_at|date:"d M Y H:i" }}
+                                </small>
+                                
+                                {% for item in order.items %}
+                                    <p class="mb-0 small">
+                                        {{ item.product_name|default:"Товар" }} 
+                                        (Quantity: {{ item.quantity }}, ${{ item.price|floatformat:2 }})
+                                    </p>
+                                {% empty %}
+                                    <p class="mb-0 small text-warning">No items in order.</p>
                                 {% endfor %}
                             </li>
                         {% endfor %}
                     </ul>
                 {% else %}
-                    <p class="text-muted small">No orders yet.</p>
-                {% endif %}
-            </div>
-
-            <div class="bg-white p-3 rounded mb-3">
-                <h6 class="mb-2">Your Notes</h6>
-                <form method="post" class="mb-2">
-                    {% csrf_token %}
-                    <label class="form-label small text-muted">New Note</label>
-                    {{ note_form }}
-                    <button type="submit" class="btn btn-primary btn-sm w-100" name="note_submit">Add Note</button>
-                </form>
-                {% if notes %}
-                    <ul class="list-unstyled">
-                        {% for note in notes %}
-                            <li class="mb-2 border-bottom pb-2">
-                                <small class="text-muted">{{ note.updated_at|timezone:user.timezone_info.timezone }}</small>
-                                <p class="mb-1"><strong>{{ note.title }}</strong></p>
-                                <p class="mb-0 small">{{ note.content|truncatechars:100 }}</p>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p class="text-muted small">No notes yet.</p>
-                {% endif %}
-            </div>
-
-            <div class="bg-white p-3 rounded mb-3">
-                <h6 class="mb-2">Your Groups</h6>
-                <form method="post" class="mb-2">
-                    {% csrf_token %}
-                    <label class="form-label small text-muted">New Group</label>
-                    {{ group_form }}
-                    <button type="submit" class="btn btn-primary btn-sm w-100" name="group_submit">Create Group</button>
-                </form>
-                {% if groups %}
-                    <ul class="list-unstyled">
-                        {% for group in groups %}
-                            <li class="mb-2 border-bottom pb-2">
-                                <p class="mb-1"><strong>{{ group.name }}</strong></p>
-                                {% if group.description %}
-                                    <p class="mb-0 small">{{ group.description|truncatechars:100 }}</p>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p class="text-muted small">Not in any groups yet.</p>
+                    <p class="text-muted small">No orders but you can change that.</p>
                 {% endif %}
             </div>
         </div>

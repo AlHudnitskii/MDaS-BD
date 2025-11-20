@@ -1,65 +1,72 @@
 -- 1 - Создание заказа с добавлением товаров одной транзакцией
-CREATE OR REPLACE PROCEDURE create_order_with_items(
-   p_user_id UUID,
-   p_first_name VARCHAR(50),
-   p_last_name VARCHAR(50),
-   p_email VARCHAR(254),
-   p_city VARCHAR(100),
-   p_address VARCHAR(250),
-   p_postal_code VARCHAR(20),
-   p_items JSONB 
+CREATE OR REPLACE FUNCTION create_one_order_with_items(
+    p_user_id UUID,
+    p_first_name VARCHAR(50),
+    p_last_name VARCHAR(50),
+    p_email VARCHAR(254),
+    p_city VARCHAR(100),
+    p_address VARCHAR(250),
+    p_postal_code VARCHAR(20),
+    p_items JSONB 
 )
+RETURNS UUID 
 LANGUAGE plpgsql AS $$ 
 DECLARE 
-   v_order_id UUID;
-   v_item JSONB;
-   v_product_price DECIMAL(10,2);
-   v_available BOOLEAN;
-   v_product_name VARCHAR(50);
-   v_total_amount DECIMAL(10,2) := 0;
+    v_order_id UUID;
+    v_item JSONB;
+    v_product_price DECIMAL(10,2);
+    v_available BOOLEAN;
+    v_product_name VARCHAR(50);
+    v_total_amount DECIMAL(10,2) := 0;
 BEGIN
-   INSERT INTO orders (
-      user_id, first_name, last_name, email,
-      city, address, postal_code, 
-      created_at, updated_at, paid
-   )
-   VALUES (
-      p_user_id, p_first_name, p_last_name, p_email,
-      p_city, p_address, p_postal_code,
-      NOW(), NOW(), FALSE
-   )
-   RETURNING id INTO v_order_id;
+    -- Вставка заказа (включая fix: first_name, last_name, email)
+    INSERT INTO orders (
+        user_id, first_name, last_name, email,
+        city, address, postal_code, 
+        created_at, updated_at, paid
+    )
+    VALUES (
+        p_user_id, p_first_name, p_last_name, p_email,
+        p_city, p_address, p_postal_code,
+        NOW(), NOW(), FALSE
+    )
+    RETURNING id INTO v_order_id;
 
-   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-   LOOP 
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+    LOOP 
+      -- ... (логика обработки order_items) ...
+      
       SELECT price, available, name 
       INTO v_product_price, v_available, v_product_name
       FROM products
       WHERE id = (v_item ->>'product_id')::UUID;
 
       IF NOT FOUND THEN
-         RAISE EXCEPTION 'Product with ID % not found', v_item->>'product_id';
+          RAISE EXCEPTION 'Product with ID % not found', v_item->>'product_id';
       END IF;
 
       IF NOT v_available THEN 
-         RAISE EXCEPTION 'Product "%" is not available', v_product_name;
+          RAISE EXCEPTION 'Product "%" is not available', v_product_name;
       END IF;
 
       INSERT INTO order_items (order_id, product_id, price, quantity)
       VALUES (
-         v_order_id,
-         (v_item->>'product_id')::UUID,
-         v_product_price,
-         (v_item->>'quantity')::INTEGER
+          v_order_id,
+          (v_item->>'product_id')::UUID,
+          v_product_price,
+          (v_item->>'quantity')::INTEGER
       );
 
       v_total_amount := v_total_amount + (v_product_price * (v_item->>'quantity')::INTEGER);
-   END LOOP;
+    END LOOP;
 
-   RAISE NOTICE 'Order % created successfully with % items. Total: $%:',
-      v_order_id, jsonb_array_length(p_items), v_total_amount;
+    RAISE NOTICE 'Order % created successfully with % items. Total: $%:',
+        v_order_id, jsonb_array_length(p_items), v_total_amount;
+    
+    -- !!! ДОБАВЛЕН ИСПРАВЛЕНИЕ: ВОЗВРАТ ID !!!
+    RETURN v_order_id; 
 END;
-$$;   
+$$;
 
 -- 2 - Очистка старых логов
 CREATE OR REPLACE PROCEDURE cleanup_old_logs(
