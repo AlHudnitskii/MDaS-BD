@@ -2,6 +2,7 @@ from django.urls import path
 
 from . import sql_views
 
+
 urlpatterns = [
     path('', sql_views.index_view, name='index'),
     

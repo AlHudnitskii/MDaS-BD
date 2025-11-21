@@ -22,8 +22,6 @@ class LoginRequiredMiddleware:
         '/logout/',
         '/',
         '/shop/',
-        '/about/',
-        '/contacts/',
         '/api/',
         '/admin/',
         '/static/',

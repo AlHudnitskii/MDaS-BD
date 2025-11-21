@@ -1,13 +1,10 @@
-from typing import List, Dict, Any, Optional
-
 import psycopg2
-import logging
 from psycopg2.extras import RealDictCursor
 from django.conf import settings
 
-logger = logging.getLogger(__name__)
-
-
+#Пул connections + нагрузочное тестирование сдедать
+#API пару эндпоинтов + Postman
+#В ОДИН из эндпоинтов вызыв хран процедуру + nested transactions 
 class SQLManager:
     def __init__(self):
         self.connection = None
@@ -30,55 +27,31 @@ class SQLManager:
         if self.connection:
             self.connection.close()
     
-    def execute(self, query: str, params: tuple = None) -> List[Dict[str, Any]]:
-        try:
-            logger.info(f"Executing SQL: {query[:100]}... with params: {params}")
-            self.cursor.execute(query, params)
-            results = self.cursor.fetchall()
-            logger.info(f"Query returned {len(results)} rows")
-            return [dict(row) for row in results]
-        except Exception as e:
-            logger.error(f"SQL Error: {e}")
-            raise
-    
-    def execute_one(self, query: str, params: tuple = None) -> Optional[Dict[str, Any]]:
-        try:
-            logger.info(f"Executing SQL (one): {query[:100]}...")
-            self.cursor.execute(query, params)
-            result = self.cursor.fetchone()
-            return dict(result) if result else None
-        except Exception as e:
-            logger.error(f"SQL Error: {e}")
-            raise
-    
-    def execute_update(self, query: str, params: tuple = None) -> int:
-        try:
-            logger.info(f"Executing UPDATE SQL: {query[:100]}...")
-            self.cursor.execute(query, params)
-            self.connection.commit()
-            rowcount = self.cursor.rowcount
-            logger.info(f"Query affected {rowcount} rows")
-            return rowcount
-        except Exception as e:
-            logger.error(f"SQL Error: {e}")
-            self.connection.rollback()
-            raise
-    
-    def call_procedure(self, proc_name: str, params: tuple = None):
-        try:
-            logger.info(f"Calling procedure: {proc_name} with params: {params}")
-            self.cursor.callproc(proc_name, params)
-            self.connection.commit()
-            logger.info(f"Procedure {proc_name} executed successfully")
-        except Exception as e:
-            logger.error(f"Procedure Error: {e}")
-            self.connection.rollback()
-            raise
+    def execute(self, query, params):
+        self.cursor.execute(query, params)
+        results = self.cursor.fetchall()
+        return [dict(row) for row in results]
 
+    
+    def execute_one(self, query, params):
+        self.cursor.execute(query, params)
+        result = self.cursor.fetchone()
+        return dict(result) if result else None
+    
+    def execute_update(self, query, params):
+        self.cursor.execute(query, params)
+        self.connection.commit()
+        rowcount = self.cursor.rowcount
+        return rowcount
+    
+    def call_procedure(self, proc_name, params):
+        self.cursor.callproc(proc_name, params)
+        self.connection.commit()
+        
 
 class UserRepository:
     @staticmethod
-    def get_all_active_users() -> List[Dict[str, Any]]:
+    def get_all_active_users():
         query = """
             SELECT id, username, email, first_name, last_name, 
                    is_active, is_superuser, date_joined
@@ -90,7 +63,7 @@ class UserRepository:
             return db.execute(query)
     
     @staticmethod
-    def get_user_by_username(username: str) -> Optional[Dict[str, Any]]:
+    def get_user_by_username(username):
         query = """
             SELECT id, username, email, first_name, last_name,
                    password, is_active, is_superuser, date_joined, last_login
@@ -101,7 +74,7 @@ class UserRepository:
             return db.execute_one(query, (username,))
     
     @staticmethod
-    def create_user(username: str, email: str, password: str, first_name: str, last_name: str) -> Dict[str, Any]:
+    def create_user(username, email, password, first_name, last_name):
         query = """
             INSERT INTO users (
                 id, username, password, email, first_name, last_name,
@@ -127,7 +100,7 @@ class UserRepository:
             return db.execute_update(query, (first_name, last_name, email, user_id))
     
     @staticmethod
-    def get_users_with_roles() -> List[Dict[str, Any]]:
+    def get_users_with_roles():
         query = """
             SELECT DISTINCT
                 u.id,
@@ -148,7 +121,7 @@ class UserRepository:
 
 class ProductRepository:
     @staticmethod
-    def get_all_products(category_slug: str = None, sort_by: str = 'name') -> List[Dict[str, Any]]:
+    def get_all_products(category_slug, sort_by):
         base_query = """
             SELECT 
                 p.id,
@@ -186,7 +159,7 @@ class ProductRepository:
             return db.execute(base_query, tuple(params) if params else None)
     
     @staticmethod
-    def get_product_by_slug(slug: str) -> Optional[Dict[str, Any]]:
+    def get_product_by_slug(slug):
         query = """
             SELECT 
                 p.id,
@@ -207,7 +180,7 @@ class ProductRepository:
             return db.execute_one(query, (slug,))
     
     @staticmethod
-    def search_products(search_query: str) -> List[Dict[str, Any]]:
+    def search_products(search_query):
         query = """
             SELECT 
                 p.id,
@@ -228,7 +201,7 @@ class ProductRepository:
             return db.execute(query, (search_pattern, search_pattern))
     
     @staticmethod
-    def get_top_products(limit: int = 10) -> List[Dict[str, Any]]:
+    def get_top_products(limit = 10):
         query = """
             SELECT 
                 p.id,
@@ -252,7 +225,7 @@ class ProductRepository:
 
 class CategoryRepository:
     @staticmethod
-    def get_all_categories() -> List[Dict[str, Any]]:
+    def get_all_categories():
         query = """
             SELECT id, name, slug
             FROM categories
@@ -262,7 +235,7 @@ class CategoryRepository:
             return db.execute(query)
     
     @staticmethod
-    def get_category_by_slug(slug: str) -> Optional[Dict[str, Any]]:
+    def get_category_by_slug(slug):
         query = """
             SELECT id, name, slug
             FROM categories
@@ -274,9 +247,8 @@ class CategoryRepository:
 
 class OrderRepository:
     @staticmethod
-    def create_order_with_items(user_id: str, first_name: str, last_name: str,
-                               email: str, city: str, address: str, 
-                               postal_code: str, items: List[Dict]) -> str:
+    def create_order_with_items(user_id, first_name, last_name, email,
+                                city, address, postal_code, items) :
         import json
         
         items_json = json.dumps(items)
@@ -304,7 +276,7 @@ class OrderRepository:
             return str(result['id']) if result else None
     
     @staticmethod
-    def get_user_orders(user_id: str) -> List[Dict[str, Any]]:
+    def get_user_orders(user_id):
         query = """
             SELECT 
                 o.id,
@@ -328,7 +300,7 @@ class OrderRepository:
             return db.execute(query, (user_id,))
     
     @staticmethod
-    def get_order_details(order_id: str) -> Dict[str, Any]:
+    def get_order_details(order_id):
         query = """
             SELECT 
                 o.id,
@@ -376,7 +348,7 @@ class OrderRepository:
 
 class StatisticsRepository:
     @staticmethod
-    def get_sales_statistics() -> Dict[str, Any]:
+    def get_sales_statistics():
         total_sales_query = """
             SELECT COALESCE(SUM(oi.price * oi.quantity), 0) as total
             FROM order_items oi
@@ -413,7 +385,7 @@ class StatisticsRepository:
             }
     
     @staticmethod
-    def get_category_statistics() -> List[Dict[str, Any]]:
+    def get_category_statistics():
         query = """
             SELECT 
                 c.name AS category_name,
@@ -445,14 +417,14 @@ class StatisticsRepository:
 
 class LogRepository:
     @staticmethod
-    def cleanup_old_logs(days: int = 90):
+    def cleanup_old_logs(days = 90):
         query = "CALL cleanup_old_logs(%s)"
         with SQLManager() as db:
             db.cursor.execute(query, (days,))
             db.connection.commit()
     
     @staticmethod
-    def get_recent_logs(limit: int = 50) -> List[Dict[str, Any]]:
+    def get_recent_logs(limit = 50):
         query = """
             SELECT 
                 le.id,
@@ -471,7 +443,7 @@ class LogRepository:
             return db.execute(query, (limit,))
     
     @staticmethod
-    def log_action(user_id: str, action: str, details: dict, status: str = 'SUCCESS'):
+    def log_action(user_id, action, details, status='SUCCESS'):
         import json
         
         query = """
@@ -485,7 +457,7 @@ class LogRepository:
 
 class UserNoteRepository:  
     @staticmethod
-    def create_note(user_id: str, title: str, content: str) -> Dict[str, Any]:
+    def create_note(user_id, title, content):
         query = """
             INSERT INTO user_notes (user_id, title, content, created_at, updated_at)
             VALUES (%s::uuid, %s, %s, NOW(), NOW())
@@ -495,7 +467,7 @@ class UserNoteRepository:
             return db.execute_one(query, (user_id, title, content))
     
     @staticmethod
-    def get_user_notes(user_id: str) -> List[Dict[str, Any]]:
+    def get_user_notes(user_id):
         query = """
             SELECT id, title, content, created_at, updated_at
             FROM user_notes
@@ -506,7 +478,7 @@ class UserNoteRepository:
             return db.execute(query, (user_id,))
     
     @staticmethod
-    def get_note_by_id(note_id: str) -> Optional[Dict[str, Any]]:
+    def get_note_by_id(note_id):
         query = """
             SELECT id, user_id, title, content, created_at, updated_at
             FROM user_notes
@@ -516,7 +488,7 @@ class UserNoteRepository:
             return db.execute_one(query, (note_id,))
     
     @staticmethod
-    def update_note(note_id: str, title: str, content: str):
+    def update_note(note_id, title, content):
         query = """
             UPDATE user_notes
             SET title = %s, content = %s, updated_at = NOW()
@@ -534,7 +506,7 @@ class UserNoteRepository:
 
 class WishlistRepository:   
     @staticmethod
-    def create_wishlist(user_id: str, name: str, description: str = '') -> Dict[str, Any]:
+    def create_wishlist(user_id, name, description=''):
         query = """
             INSERT INTO wishlists (user_id, name, description, created_at, updated_at)
             VALUES (%s::uuid, %s, %s, NOW(), NOW())
@@ -544,7 +516,7 @@ class WishlistRepository:
             return db.execute_one(query, (user_id, name, description))
     
     @staticmethod
-    def get_user_wishlists(user_id: str) -> List[Dict[str, Any]]:
+    def get_user_wishlists(user_id):
         query = """
             SELECT 
                 w.id,
@@ -562,7 +534,7 @@ class WishlistRepository:
             return db.execute(query, (user_id,))
     
     @staticmethod
-    def get_wishlist_items(wishlist_id: str) -> List[Dict[str, Any]]:
+    def get_wishlist_items(wishlist_id):
         query = """
             SELECT 
                 wi.id as wishlist_item_id,
@@ -585,7 +557,7 @@ class WishlistRepository:
             return db.execute(query, (wishlist_id,))
     
     @staticmethod
-    def add_to_wishlist(wishlist_id: str, product_id: str):
+    def add_to_wishlist(wishlist_id, product_id):
         query = """
             INSERT INTO wishlist_items (wishlist_id, product_id, created_at, updated_at)
             VALUES (%s::uuid, %s::uuid, NOW(), NOW())
@@ -596,13 +568,13 @@ class WishlistRepository:
             return db.execute_one(query, (wishlist_id, product_id))
     
     @staticmethod
-    def remove_from_wishlist(wishlist_item_id: str):
+    def remove_from_wishlist(wishlist_item_id):
         query = "DELETE FROM wishlist_items WHERE id = %s::uuid"
         with SQLManager() as db:
             return db.execute_update(query, (wishlist_item_id,))
     
     @staticmethod
-    def delete_wishlist(wishlist_id: str):
+    def delete_wishlist(wishlist_id):
         query = "DELETE FROM wishlists WHERE id = %s::uuid"
         with SQLManager() as db:
             return db.execute_update(query, (wishlist_id,))
@@ -610,7 +582,7 @@ class WishlistRepository:
 
 class ProductReviewRepository:
     @staticmethod
-    def create_review(product_id: str, user_id: str, rating: int, comment: str) -> Dict[str, Any]:
+    def create_review(product_id, user_id, rating, comment):
         query = """
             INSERT INTO product_reviews 
             (product_id, user_id, rating, comment, created_at, updated_at, is_verified)
@@ -621,7 +593,7 @@ class ProductReviewRepository:
             return db.execute_one(query, (product_id, user_id, rating, comment))
     
     @staticmethod
-    def get_product_reviews(product_id: str) -> List[Dict[str, Any]]:
+    def get_product_reviews(product_id):
         query = """
             SELECT 
                 pr.id,
@@ -641,7 +613,7 @@ class ProductReviewRepository:
             return db.execute(query, (product_id,))
     
     @staticmethod
-    def get_user_reviews(user_id: str) -> List[Dict[str, Any]]:
+    def get_user_reviews(user_id):
         query = """
             SELECT 
                 pr.id,
@@ -660,7 +632,7 @@ class ProductReviewRepository:
             return db.execute(query, (user_id,))
     
     @staticmethod
-    def update_review(review_id: str, rating: int, comment: str):
+    def update_review(review_id, rating, comment):
         query = """
             UPDATE product_reviews
             SET rating = %s, comment = %s, updated_at = NOW()
@@ -676,7 +648,7 @@ class ProductReviewRepository:
             return db.execute_update(query, (review_id,))
     
     @staticmethod
-    def get_product_average_rating(product_id: str) -> Dict[str, Any]:
+    def get_product_average_rating(product_id):
         query = """
             SELECT 
                 ROUND(AVG(rating), 1) as avg_rating,
@@ -691,7 +663,7 @@ class ProductReviewRepository:
 
 class ProductImageRepository:
     @staticmethod
-    def get_product_images(product_id: str) -> List[Dict[str, Any]]:
+    def get_product_images(product_id):
         query = """
             SELECT id, image, alt_text, is_main, display_order, created_at
             FROM product_images
@@ -702,7 +674,7 @@ class ProductImageRepository:
             return db.execute(query, (product_id,))
     
     @staticmethod
-    def add_product_image(product_id: str, image_url: str, alt_text: str = '', is_main: bool = False):
+    def add_product_image(product_id, image_url, alt_text = '', is_main= False):
         query = """
             INSERT INTO product_images 
             (product_id, image, alt_text, is_main, created_at)

@@ -1,4 +1,3 @@
-import logging
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
@@ -15,8 +14,6 @@ from .sql_manager import (
     WishlistRepository,
     ProductReviewRepository,
 )
-
-logger = logging.getLogger(__name__)
 
 
 # ============= АУТЕНТИФИКАЦИЯ =============
@@ -40,7 +37,6 @@ def login_view(request):
                         FROM users WHERE username = %s AND is_active = TRUE
                     """
                     result = db.execute_one(check_query, (password, username))
-                    logger.info(f"Is valid result: {result}")
                     
                     if result and result['is_valid']:
                         request.session['user_id'] = str(user_data['id'])
@@ -59,20 +55,17 @@ def login_view(request):
                                 {'ip': request.META.get('REMOTE_ADDR'), 'username': username},
                                 'SUCCESS'
                             )
-                        except Exception as log_error:
-                            logger.warning(f"Failed to log action: {log_error}")
+                        except Exception:
+                            pass
                         
-                        logger.info(f"User {username} logged in successfully")
                         messages.success(request, f'Welcome back, {username}!')
                         
                         next_url = request.POST.get('next') or request.GET.get('next') or '/'
                         return redirect(next_url)
             
             messages.error(request, 'Invalid username or password')
-            logger.warning(f"Failed login attempt for username: {username}")
             
-        except Exception as e:
-            logger.error(f"Login error: {e}", exc_info=True)
+        except Exception:
             messages.error(request, 'An error occurred during login. Please try again.')
     
     return render(request, 'users/login.html')
@@ -152,17 +145,15 @@ def register_view(request):
                             {'username': username, 'email': email},
                             'SUCCESS'
                         )
-                    except Exception as log_error:
-                        logger.warning(f"Failed to log action: {log_error}")
+                    except Exception:
+                        pass
                     
-                    logger.info(f"New user registered: {username}")
                     messages.success(request, 'Registration successful! Welcome to SQL Shop!')
                     return redirect('/')
                 else:
                     messages.error(request, 'Failed to create user')
                     
         except Exception as e:
-            logger.error(f"Registration error: {e}", exc_info=True)
             error_msg = str(e)
             if 'unique constraint' in error_msg.lower():
                 messages.error(request, 'Username or email already exists')
@@ -184,8 +175,8 @@ def logout_view(request):
                 {'username': username},
                 'SUCCESS'
             )
-        except Exception as e:
-            logger.error(f"Logout logging error: {e}")
+        except Exception:
+            pass
     
     request.session.flush()
     messages.success(request, 'You have been logged out successfully')
@@ -228,8 +219,7 @@ def profile_view(request):
         
         return render(request, 'users/profile.html', context)
     
-    except Exception as e:
-        logger.error(f"Profile view error: {e}")
+    except Exception:
         messages.error(request, 'Error loading profile')
         return redirect('product_list')
 
@@ -249,7 +239,6 @@ def product_list_view(request, category_slug=None):
         
         if search_query:
             products = ProductRepository.search_products(search_query)
-            logger.info(f"Search query: '{search_query}', found {len(products)} products")
         else:
             products = ProductRepository.get_all_products(category_slug, sort_by)
         
@@ -263,8 +252,7 @@ def product_list_view(request, category_slug=None):
         
         return render(request, 'main/product/list.html', context)
     
-    except Exception as e:
-        logger.error(f"Product list error: {e}")
+    except Exception:
         messages.error(request, 'Error loading products')
         return render(request, 'main/product/list.html', {'products': [], 'categories': []})
 
@@ -275,14 +263,12 @@ def product_detail_view(request, slug):
         
         if not product:
             messages.error(request, 'Product not found')
-            logger.warning(f"Product not found with slug: {slug}")
             return redirect('product_list')
         
         try:
             reviews = ProductReviewRepository.get_product_reviews(str(product['id']))
             avg_rating = ProductReviewRepository.get_product_average_rating(str(product['id']))
-        except Exception as e:
-            logger.warning(f"Error loading reviews: {e}")
+        except Exception:
             reviews = []
             avg_rating = {'avg_rating': 0, 'reviews_count': 0}
         
@@ -293,11 +279,9 @@ def product_detail_view(request, slug):
             'user_authenticated': request.session.get('is_authenticated', False)
         }
         
-        logger.info(f"Product detail loaded: {product['name']}")
         return render(request, 'main/product/detail.html', context)
     
-    except Exception as e:
-        logger.error(f"Product detail error: {e}")
+    except Exception:
         messages.error(request, 'Error loading product')
         return redirect('product_list')
 
@@ -331,8 +315,7 @@ def cart_detail_view(request):
         
         return render(request, 'cart/detail.html', context)
     
-    except Exception as e:
-        logger.error(f"Cart view error: {e}")
+    except Exception:
         messages.error(request, 'Error loading cart')
         return render(request, 'cart/detail.html', {'cart_items': [], 'total_price': 0})
 
@@ -363,12 +346,10 @@ def cart_add_view(request, product_id):
         request.session.modified = True
         
         messages.success(request, f"{product['name']} added to cart")
-        logger.info(f"Product {product['name']} added to cart")
         
         return redirect('cart_detail')
     
-    except Exception as e:
-        logger.error(f"Cart add error: {e}")
+    except Exception:
         messages.error(request, 'Error adding to cart')
         return redirect('product_list')
 
@@ -433,14 +414,12 @@ def order_create_view(request):
                     'SUCCESS'
                 )
                 
-                logger.info(f"Order {order_id} created successfully")
                 messages.success(request, f'Order #{order_id} created successfully!')
                 return redirect('order_success', order_id=order_id)
             else:
                 messages.error(request, 'Failed to create order')
         
         except Exception as e:
-            logger.error(f"Order creation error: {e}")
             messages.error(request, f'Error creating order: {str(e)}')
     
     total_price = sum(item['price'] * item['quantity'] for item in cart.values())
@@ -458,8 +437,7 @@ def order_success_view(request, order_id):
         order = OrderRepository.get_order_details(order_id)
         context = {'order': order}
         return render(request, 'orders/order/created.html', context)
-    except Exception as e:
-        logger.error(f"Order success view error: {e}")
+    except Exception:
         messages.error(request, 'Order not found')
         return redirect('product_list')
 
@@ -482,8 +460,7 @@ def statistics_view(request):
         
         return render(request, 'main/info/statistics.html', context)
     
-    except Exception as e:
-        logger.error(f"Statistics view error: {e}")
+    except Exception:
         messages.error(request, 'Error loading statistics')
         return render(request, 'main/info/statistics.html', {})
 
@@ -509,8 +486,7 @@ def cleanup_logs_view(request):
         )
         
         messages.success(request, f'Logs older than {days} days have been cleaned up')
-    except Exception as e:
-        logger.error(f"Log cleanup error: {e}")
+    except Exception:
         messages.error(request, 'Error cleaning up logs')
 
     return redirect('profile')
@@ -530,9 +506,7 @@ def process_payment_view(request, order_id):
         )
         
         messages.success(request, f'Payment processed for order #{order_id}')
-        logger.info(f"Payment processed for order {order_id}")
     except Exception as e:
-        logger.error(f"Payment processing error: {e}")
         messages.error(request, f'Error processing payment: {str(e)}')
     
     return redirect('profile')
@@ -545,8 +519,7 @@ def index_view(request):
         popular_products = ProductRepository.get_top_products(4)
         context = {'products': popular_products}
         return render(request, 'main/index/index.html', context)
-    except Exception as e:
-        logger.error(f"Index view error: {e}")
+    except Exception:
         return render(request, 'main/index/index.html', {'products': []})
 
 
@@ -563,8 +536,7 @@ def user_notes_view(request):
         notes = UserNoteRepository.get_user_notes(user_id)
         context = {'notes': notes}
         return render(request, 'users/notes.html', context)
-    except Exception as e:
-        logger.error(f"Notes view error: {e}")
+    except Exception:
         messages.error(request, 'Error loading notes')
         return redirect('profile')
 
@@ -583,8 +555,7 @@ def create_note_view(request):
         UserNoteRepository.create_note(user_id, title, content)
         LogRepository.log_action(user_id, 'NOTE_CREATED', {'title': title}, 'SUCCESS')
         messages.success(request, 'Note created successfully')
-    except Exception as e:
-        logger.error(f"Create note error: {e}")
+    except Exception:
         messages.error(request, 'Error creating note')
     
     return redirect('user_notes')
@@ -608,8 +579,7 @@ def update_note_view(request, note_id):
             messages.success(request, 'Note updated successfully')
         else:
             messages.error(request, 'Access denied')
-    except Exception as e:
-        logger.error(f"Update note error: {e}")
+    except Exception:
         messages.error(request, 'Error updating note')
     
     return redirect('user_notes')
@@ -630,8 +600,7 @@ def delete_note_view(request, note_id):
             messages.success(request, 'Note deleted successfully')
         else:
             messages.error(request, 'Access denied')
-    except Exception as e:
-        logger.error(f"Delete note error: {e}")
+    except Exception:
         messages.error(request, 'Error deleting note')
     
     return redirect('user_notes')
@@ -650,8 +619,7 @@ def wishlists_view(request):
         wishlists = WishlistRepository.get_user_wishlists(user_id)
         context = {'wishlists': wishlists}
         return render(request, 'users/wishlists.html', context)
-    except Exception as e:
-        logger.error(f"Wishlists view error: {e}")
+    except Exception:
         messages.error(request, 'Error loading wishlists')
         return redirect('profile')
 
@@ -666,8 +634,7 @@ def wishlist_detail_view(request, wishlist_id):
         items = WishlistRepository.get_wishlist_items(wishlist_id)
         context = {'wishlist_id': wishlist_id, 'items': items}
         return render(request, 'users/wishlist_detail.html', context)
-    except Exception as e:
-        logger.error(f"Wishlist detail error: {e}")
+    except Exception:
         messages.error(request, 'Error loading wishlist')
         return redirect('wishlists')
 
@@ -686,8 +653,7 @@ def create_wishlist_view(request):
         WishlistRepository.create_wishlist(user_id, name, description)
         LogRepository.log_action(user_id, 'WISHLIST_CREATED', {'name': name}, 'SUCCESS')
         messages.success(request, 'Wishlist created successfully')
-    except Exception as e:
-        logger.error(f"Create wishlist error: {e}")
+    except Exception:
         messages.error(request, 'Error creating wishlist')
     
     return redirect('wishlists')
@@ -705,8 +671,7 @@ def add_to_wishlist_view(request, wishlist_id, product_id):
         LogRepository.log_action(user_id, 'PRODUCT_ADDED_TO_WISHLIST', 
                                 {'wishlist_id': wishlist_id, 'product_id': product_id}, 'SUCCESS')
         messages.success(request, 'Product added to wishlist')
-    except Exception as e:
-        logger.error(f"Add to wishlist error: {e}")
+    except Exception:
         messages.error(request, 'Error adding to wishlist')
     
     return redirect('wishlist_detail', wishlist_id=wishlist_id)
@@ -724,8 +689,7 @@ def remove_from_wishlist_view(request, wishlist_item_id):
         LogRepository.log_action(user_id, 'PRODUCT_REMOVED_FROM_WISHLIST', 
                                 {'item_id': wishlist_item_id}, 'SUCCESS')
         messages.success(request, 'Product removed from wishlist')
-    except Exception as e:
-        logger.error(f"Remove from wishlist error: {e}")
+    except Exception:
         messages.error(request, 'Error removing from wishlist')
     
     return redirect('wishlists')
@@ -750,8 +714,7 @@ def product_reviews_view(request, slug):
         }
         
         return render(request, 'main/product/reviews.html', context)
-    except Exception as e:
-        logger.error(f"Product reviews error: {e}")
+    except Exception:
         messages.error(request, 'Error loading reviews')
         return redirect('product_list')
 
@@ -772,8 +735,7 @@ def create_review_view(request, product_id):
         LogRepository.log_action(user_id, 'REVIEW_CREATED', 
                                 {'product_id': product_id, 'rating': rating}, 'SUCCESS')
         messages.success(request, 'Review submitted successfully')
-    except Exception as e:
-        logger.error(f"Create review error: {e}")
+    except Exception:
         messages.error(request, 'Error submitting review. You may have already reviewed this product.')
     
     product = ProductRepository.get_product_by_slug(product_id)
@@ -792,8 +754,7 @@ def user_reviews_view(request):
         reviews = ProductReviewRepository.get_user_reviews(user_id)
         context = {'reviews': reviews}
         return render(request, 'users/reviews.html', context)
-    except Exception as e:
-        logger.error(f"User reviews error: {e}")
+    except Exception:
         messages.error(request, 'Error loading reviews')
         return redirect('profile')
 
@@ -812,8 +773,7 @@ def update_review_view(request, review_id):
         ProductReviewRepository.update_review(review_id, rating, comment)
         LogRepository.log_action(user_id, 'REVIEW_UPDATED', {'review_id': review_id}, 'SUCCESS')
         messages.success(request, 'Review updated successfully')
-    except Exception as e:
-        logger.error(f"Update review error: {e}")
+    except Exception:
         messages.error(request, 'Error updating review')
     
     return redirect('user_reviews')
@@ -830,8 +790,7 @@ def delete_review_view(request, review_id):
         ProductReviewRepository.delete_review(review_id)
         LogRepository.log_action(user_id, 'REVIEW_DELETED', {'review_id': review_id}, 'SUCCESS')
         messages.success(request, 'Review deleted successfully')
-    except Exception as e:
-        logger.error(f"Delete review error: {e}")
+    except Exception:
         messages.error(request, 'Error deleting review')
     
     return redirect('user_reviews')
