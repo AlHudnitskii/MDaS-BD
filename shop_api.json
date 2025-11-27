@@ -1,0 +1,185 @@
+{
+	"info": {
+		"_postman_id": "ed1f6b6e-b089-425d-b663-03806965cd77",
+		"name": "Shop API - Load Testing",
+		"description": "API endpoints для нагрузочного тестирования интернет-магазина",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "48389568",
+		"_collection_link": "https://ang3lm4ycry-3441662.postman.co/workspace/bd~718df977-eeca-4cb7-bb14-7f2f623b58f1/collection/48389568-ed1f6b6e-b089-425d-b663-03806965cd77?action=share&source=collection_link&creator=48389568"
+	},
+	"item": [
+		{
+			"name": "1. Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/health/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"health",
+						""
+					]
+				},
+				"description": "Проверяет работоспособность API и подключение к БД"
+			},
+			"response": []
+		},
+		{
+			"name": "2. Get Products (Simple)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/products/?limit=20",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"products",
+						""
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "20",
+							"description": "Количество товаров"
+						}
+					]
+				},
+				"description": "Простой запрос для базового нагрузочного тестирования"
+			},
+			"response": []
+		},
+		{
+			"name": "3. Get Products with Filters",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/products/?category=electronics&sort=-price&limit=50",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"products",
+						""
+					],
+					"query": [
+						{
+							"key": "category",
+							"value": "electronics"
+						},
+						{
+							"key": "sort",
+							"value": "-price"
+						},
+						{
+							"key": "limit",
+							"value": "50"
+						}
+					]
+				},
+				"description": "Запрос с фильтрами (более сложный)"
+			},
+			"response": []
+		},
+		{
+			"name": "4. Get Statistics",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/statistics/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"statistics",
+						""
+					]
+				},
+				"description": "Статистика с агрегацией (тяжёлый запрос)"
+			},
+			"response": []
+		},
+		{
+			"name": "5. Create Order (WITH STORED PROCEDURE)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"user_id\": \"550e8400-e29b-41d4-a716-446655440001\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"email\": \"john@test.com\",\n  \"city\": \"New York\",\n  \"address\": \"123 Main St\",\n  \"postal_code\": \"10001\",\n  \"items\": [\n    {\n      \"product_id\": \"550e8400-e29b-41d4-a716-446655440501\",\n      \"quantity\": 2\n    },\n    {\n      \"product_id\": \"550e8400-e29b-41d4-a716-446655440502\",\n      \"quantity\": 1\n    }\n  ],\n  \"apply_discount\": false\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/orders/create/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"orders",
+						"create",
+						""
+					]
+				},
+				"description": "Создание заказа через хранимую процедуру БЕЗ nested transaction"
+			},
+			"response": []
+		},
+		{
+			"name": "6. Create Order with NESTED TRANSACTION",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"user_id\": \"550e8400-e29b-41d4-a716-446655440001\",\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Smith\",\n  \"email\": \"jane@test.com\",\n  \"city\": \"London\",\n  \"address\": \"456 Queen St\",\n  \"postal_code\": \"SW1A\",\n  \"items\": [\n    {\n      \"product_id\": \"550e8400-e29b-41d4-a716-446655440501\",\n      \"quantity\": 3\n    }\n  ],\n  \"apply_discount\": true\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/orders/create/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"orders",
+						"create",
+						""
+					]
+				},
+				"description": "Создание заказа С вложенной транзакцией (применяет скидку через SAVEPOINT)"
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "550e8400-e29b-41d4-a716-446655440001",
+			"type": "string"
+		}
+	]
+}

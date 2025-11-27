@@ -1,7 +1,7 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from django.conf import settings
 
+from .sql_pool import get_connection_pool
 #Пул connections + нагрузочное тестирование сдедать
 #API пару эндпоинтов + Postman
 #В ОДИН из эндпоинтов вызыв хран процедуру + nested transactions 
@@ -9,15 +9,10 @@ class SQLManager:
     def __init__(self):
         self.connection = None
         self.cursor = None
+        self.pool = get_connection_pool()
     
     def __enter__(self):
-        self.connection = psycopg2.connect(
-            dbname=settings.DATABASES['default']['NAME'],
-            user=settings.DATABASES['default']['USER'],
-            password=settings.DATABASES['default']['PASSWORD'],
-            host=settings.DATABASES['default']['HOST'],
-            port=settings.DATABASES['default']['PORT']
-        )
+        self.connection = self.pool.getconn()
         self.cursor = self.connection.cursor(cursor_factory=RealDictCursor)
         return self
     
@@ -25,7 +20,9 @@ class SQLManager:
         if self.cursor:
             self.cursor.close()
         if self.connection:
-            self.connection.close()
+            self.pool.putconn(self.connection)
+        if exc_type is not None:
+            return False      
     
     def execute(self, query, params):
         self.cursor.execute(query, params)
@@ -33,8 +30,11 @@ class SQLManager:
         return [dict(row) for row in results]
 
     
-    def execute_one(self, query, params):
-        self.cursor.execute(query, params)
+    def execute_one(self, query, params=None):
+        if params is None:
+            self.cursor.execute(query)
+        else:
+            self.cursor.execute(query, params)
         result = self.cursor.fetchone()
         return dict(result) if result else None
     
@@ -48,6 +48,17 @@ class SQLManager:
         self.cursor.callproc(proc_name, params)
         self.connection.commit()
         
+    def begin_nested(self):
+        savepoint_name = f"savepoint_{id(self)}"
+        self.cursor.execute(f"SAVEPOINT {savepoint_name}")    
+        return savepoint_name
+    
+    def rollback_to_savepoint(self, savepoint_name):
+        self.cursor.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name}")
+        
+    def release_savepoint(self, savepoint_name):
+        self.cursor.execute(f"RELEASE SAVEPOINT {savepoint_name}")    
+
 
 class UserRepository:
     @staticmethod
