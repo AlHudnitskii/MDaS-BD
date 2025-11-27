@@ -5,7 +5,7 @@
 {% block content %}
 <div class="card">
     <a href="/shop/{{ product.slug }}/" class="btn btn-secondary" style="margin-bottom: 2rem;">
-        ← Back to Product
+        Back to Product
     </a>
     
     <h1 style="margin-bottom: 1rem;">{{ product.name }} - Reviews</h1>
@@ -44,7 +44,7 @@
             {% endfor %}
             {% if review.is_verified %}
             <span style="background: #28a745; color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; margin-left: 0.5rem;">
-                ✓ Verified Purchase
+                Verified Purchase
             </span>
             {% endif %}
         </div>

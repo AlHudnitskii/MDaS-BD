@@ -21,7 +21,7 @@ def api_products_list(request):
         sort_by = request.GET.get('sort', 'name')
         limit = int(request.GET.get('limit', 50))
         
-        products = ProductRepository.get_all_products(category_slug, sort_by)        
+        products = ProductRepository.get_all_products(category_slug, sort_by)
         products = products[:limit]
         
         execution_time = time.time() - start_time
@@ -62,8 +62,8 @@ def api_statistics(request):
             'success': False,
             'error': str(e)
         }, status=500)
-        
-        
+
+
 @require_http_methods(["GET"])
 def api_health(request):
     start_time = time.time()
@@ -98,6 +98,15 @@ def api_create_order(request):
     try:
         data = json.loads(request.body)
         
+        required_fields = ['user_id', 'first_name', 'last_name', 'email', 
+                          'city', 'address', 'postal_code', 'items']
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Missing required field: {field}'
+                }, status=400)
+        
         user_id = data['user_id']
         first_name = data['first_name']
         last_name = data['last_name']
@@ -108,28 +117,37 @@ def api_create_order(request):
         items = data['items']
         apply_discount = data.get('apply_discount', False)
         
+        if not items or len(items) == 0:
+            return JsonResponse({
+                'success': False,
+                'error': 'Order must contain at least one item'
+            }, status=400)
+        
         with SQLManager() as db:
             items_json = json.dumps(items)
             
             db.cursor.execute("""
                 SELECT create_one_order_with_items(
                     %s::uuid, %s, %s, %s, %s, %s, %s, %s::jsonb
-                )
+                ) as order_id
             """, (user_id, first_name, last_name, email, city, address, postal_code, items_json))
+            
+            result = db.cursor.fetchone()
+            order_id = str(result['order_id']) if result else None
+            
+            if not order_id:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Failed to create order'
+                }, status=500)
             
             db.connection.commit()
             
-            db.cursor.execute("""
-                SELECT id FROM orders 
-                WHERE user_id = %s::uuid 
-                ORDER BY created_at DESC 
-                LIMIT 1
-            """, (user_id,))
-            result = db.cursor.fetchone()
-            order_id = str(result['id']) if result else None
+            discount_applied = False
+            discount_message = "No discount requested"
             
-            if apply_discount and order_id:
-                savepoint = db.begin_nested()  
+            if apply_discount:
+                savepoint = db.begin_nested()
                 
                 try:
                     db.cursor.execute("""
@@ -139,29 +157,26 @@ def api_create_order(request):
                     """, (order_id,))
                     
                     db.cursor.execute("""
-                        SELECT SUM(price * quantity) as total
+                        SELECT COALESCE(SUM(price * quantity), 0) as total
                         FROM order_items
                         WHERE order_id = %s::uuid
                     """, (order_id,))
                     new_total = db.cursor.fetchone()['total']
                     
-                    if new_total < 10:  
+                    if new_total < 10:
                         db.rollback_to(savepoint)
                         discount_applied = False
-                        discount_message = "Discount rejected: order total too low"
+                        discount_message = f"Discount rejected: order total ${float(new_total):.2f} is below minimum $10"
                     else:
                         db.release_savepoint(savepoint)
                         db.connection.commit()
                         discount_applied = True
-                        discount_message = "10% discount applied"
+                        discount_message = f"10% discount applied. New total: ${float(new_total):.2f}"
                 
                 except Exception as e:
                     db.rollback_to(savepoint)
                     discount_applied = False
                     discount_message = f"Discount failed: {str(e)}"
-            else:
-                discount_applied = False
-                discount_message = "No discount requested"
         
         execution_time = time.time() - start_time
         
@@ -170,6 +185,39 @@ def api_create_order(request):
             'order_id': order_id,
             'discount_applied': discount_applied,
             'discount_message': discount_message,
+            'execution_time_ms': round(execution_time * 1000, 2),
+            'note': 'Order created with stored procedure. Discount applied via nested transaction (SAVEPOINT).'
+        })
+    
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON in request body'
+        }, status=400)
+    
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@require_http_methods(["GET"])
+def api_user_orders(request, user_id):
+    start_time = time.time()
+    
+    try:
+        from .sql_manager import OrderRepository
+        
+        orders = OrderRepository.get_user_orders(user_id)
+        
+        execution_time = time.time() - start_time
+        
+        return JsonResponse({
+            'success': True,
+            'user_id': user_id,
+            'orders_count': len(orders),
+            'orders': orders,
             'execution_time_ms': round(execution_time * 1000, 2)
         })
     

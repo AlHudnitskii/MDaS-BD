@@ -90,4 +90,3 @@ UPDATE users SET password = hash_password('john123') WHERE username = 'john_doe'
 UPDATE users SET password = hash_password('jane123') WHERE username = 'jane_smith';
 UPDATE users SET password = hash_password('bob123') WHERE username = 'bob_wilson';
 UPDATE users SET password = hash_password('alice123') WHERE username = 'alice_brown';
-

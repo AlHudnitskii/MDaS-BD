@@ -247,7 +247,7 @@ def product_list_view(request, category_slug=None):
             'categories': categories,
             'category': current_category,
             'sort_by': sort_by,
-            'query': search_query
+            'query': search_query,
         }
         
         return render(request, 'main/product/list.html', context)
@@ -610,15 +610,19 @@ def delete_note_view(request, note_id):
 
 def wishlists_view(request):
     user_id = request.session.get('user_id')
-    
+    username = request.session.get('username')
+
     if not user_id:
         messages.warning(request, 'Please login to access wishlists')
         return redirect('login')
-    
+
     try:
         wishlists = WishlistRepository.get_user_wishlists(user_id)
-        context = {'wishlists': wishlists}
-        return render(request, 'users/wishlists.html', context)
+        return render(request, 'users/wishlists.html', {
+            'wishlists': wishlists,
+            'user_authenticated': True,
+            'username': username
+        })
     except Exception:
         messages.error(request, 'Error loading wishlists')
         return redirect('profile')
@@ -626,17 +630,29 @@ def wishlists_view(request):
 
 def wishlist_detail_view(request, wishlist_id):
     user_id = request.session.get('user_id')
-    
+
     if not user_id:
         return redirect('login')
-    
+
     try:
+        wishlist = WishlistRepository.get_wishlist(wishlist_id)
+
+        if wishlist['user_id'] != user_id:
+            messages.error(request, "Access denied")
+            return redirect('wishlists')
+
         items = WishlistRepository.get_wishlist_items(wishlist_id)
-        context = {'wishlist_id': wishlist_id, 'items': items}
-        return render(request, 'users/wishlist_detail.html', context)
+
+        return render(request, 'users/wishlist_detail.html', {
+            'wishlist': wishlist,
+            'items': items,
+            'user_authenticated': True
+        })
+
     except Exception:
         messages.error(request, 'Error loading wishlist')
         return redirect('wishlists')
+
 
 
 @require_http_methods(["POST"])
@@ -662,37 +678,72 @@ def create_wishlist_view(request):
 @require_http_methods(["POST"])
 def add_to_wishlist_view(request, wishlist_id, product_id):
     user_id = request.session.get('user_id')
-    
+
     if not user_id:
         return redirect('login')
-    
+
     try:
+        wishlist = WishlistRepository.get_wishlist(wishlist_id)
+
+        if wishlist['user_id'] != user_id:
+            messages.error(request, 'Access denied')
+            return redirect('wishlists')
+
         WishlistRepository.add_to_wishlist(wishlist_id, product_id)
-        LogRepository.log_action(user_id, 'PRODUCT_ADDED_TO_WISHLIST', 
-                                {'wishlist_id': wishlist_id, 'product_id': product_id}, 'SUCCESS')
+        LogRepository.log_action(
+            user_id,
+            'PRODUCT_ADDED_TO_WISHLIST',
+            {'wishlist_id': wishlist_id, 'product_id': product_id},
+            'SUCCESS'
+        )
         messages.success(request, 'Product added to wishlist')
+
     except Exception:
         messages.error(request, 'Error adding to wishlist')
-    
+
     return redirect('wishlist_detail', wishlist_id=wishlist_id)
+
 
 
 @require_http_methods(["POST"])
 def remove_from_wishlist_view(request, wishlist_item_id):
     user_id = request.session.get('user_id')
-    
+
     if not user_id:
         return redirect('login')
-    
+
     try:
+        item = WishlistRepository.get_item(wishlist_item_id)
+        wishlist = WishlistRepository.get_wishlist(item['wishlist_id'])
+
+        if wishlist['user_id'] != user_id:
+            messages.error(request, 'Access denied')
+            return redirect('wishlists')
+
         WishlistRepository.remove_from_wishlist(wishlist_item_id)
-        LogRepository.log_action(user_id, 'PRODUCT_REMOVED_FROM_WISHLIST', 
-                                {'item_id': wishlist_item_id}, 'SUCCESS')
+
+        LogRepository.log_action(
+            user_id,
+            'PRODUCT_REMOVED_FROM_WISHLIST',
+            {'item_id': wishlist_item_id},
+            'SUCCESS'
+        )
         messages.success(request, 'Product removed from wishlist')
+
     except Exception:
         messages.error(request, 'Error removing from wishlist')
-    
-    return redirect('wishlists')
+
+    return redirect('wishlist_detail', wishlist_id=wishlist['id'])
+
+def toggle_wishlist(request, product_id):
+    user_id = request.session.get("user_id")
+
+    if not user_id:
+        messages.warning(request, "Please login first.")
+        return redirect("login")
+
+    WishlistRepository.toggle(user_id, product_id)
+    return redirect(request.META.get("HTTP_REFERER", "product_list"))
 
 
 # ============= PRODUCT REVIEWS =============

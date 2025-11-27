@@ -1,6 +1,5 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
-
 from .sql_pool import get_connection_pool
 #Пул connections + нагрузочное тестирование сдедать
 #API пару эндпоинтов + Postman
@@ -17,18 +16,26 @@ class SQLManager:
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            self.connection.commit() 
+        else:
+            self.connection.rollback()
+        
         if self.cursor:
             self.cursor.close()
+        
         if self.connection:
             self.pool.putconn(self.connection)
-        if exc_type is not None:
-            return False      
+        
+        return False
     
-    def execute(self, query, params):
-        self.cursor.execute(query, params)
+    def execute(self, query, params=None):
+        if params is None:
+            self.cursor.execute(query)
+        else:
+            self.cursor.execute(query, params)
         results = self.cursor.fetchall()
         return [dict(row) for row in results]
-
     
     def execute_one(self, query, params=None):
         if params is None:
@@ -38,26 +45,28 @@ class SQLManager:
         result = self.cursor.fetchone()
         return dict(result) if result else None
     
-    def execute_update(self, query, params):
-        self.cursor.execute(query, params)
+    def execute_update(self, query, params=None):
+        if params is None:
+            self.cursor.execute(query)
+        else:
+            self.cursor.execute(query, params)
         self.connection.commit()
-        rowcount = self.cursor.rowcount
-        return rowcount
+        return self.cursor.rowcount
     
     def call_procedure(self, proc_name, params):
         self.cursor.callproc(proc_name, params)
         self.connection.commit()
-        
+    
     def begin_nested(self):
-        savepoint_name = f"savepoint_{id(self)}"
-        self.cursor.execute(f"SAVEPOINT {savepoint_name}")    
+        savepoint_name = f"sp_{id(self)}"
+        self.cursor.execute(f"SAVEPOINT {savepoint_name}")
         return savepoint_name
     
-    def rollback_to_savepoint(self, savepoint_name):
+    def rollback_to(self, savepoint_name):
         self.cursor.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name}")
-        
+    
     def release_savepoint(self, savepoint_name):
-        self.cursor.execute(f"RELEASE SAVEPOINT {savepoint_name}")    
+        self.cursor.execute(f"RELEASE SAVEPOINT {savepoint_name}")
 
 
 class UserRepository:
@@ -92,7 +101,7 @@ class UserRepository:
                 is_active, is_superuser, date_joined
             )
             VALUES (
-                gen_random_uuid(), %s, hash_password(%s), %s, %s, %s,
+                gen_random_uuid(), %s, crypt(%s, gen_salt('bf')), %s, %s, %s,
                 TRUE, FALSE, NOW()
             )
             RETURNING id, username, email, first_name, last_name
@@ -101,7 +110,7 @@ class UserRepository:
             return db.execute_one(query, (username, password, email, first_name, last_name))
     
     @staticmethod
-    def update_user_profile(user_id: str, first_name: str, last_name: str, email: str):
+    def update_user_profile(user_id, first_name, last_name, email):
         query = """
             UPDATE users
             SET first_name = %s, last_name = %s, email = %s
@@ -109,30 +118,11 @@ class UserRepository:
         """
         with SQLManager() as db:
             return db.execute_update(query, (first_name, last_name, email, user_id))
-    
-    @staticmethod
-    def get_users_with_roles():
-        query = """
-            SELECT DISTINCT
-                u.id,
-                u.username,
-                u.email,
-                u.first_name,
-                u.last_name,
-                r.name AS role_name
-            FROM users AS u
-            INNER JOIN user_roles AS ur ON u.id = ur.user_id
-            INNER JOIN roles AS r ON ur.role_id = r.id
-            WHERE u.is_active = TRUE
-            ORDER BY u.username
-        """
-        with SQLManager() as db:
-            return db.execute(query)
 
 
 class ProductRepository:
     @staticmethod
-    def get_all_products(category_slug, sort_by):
+    def get_all_products(category_slug=None, sort_by='name'):
         base_query = """
             SELECT 
                 p.id,
@@ -191,43 +181,56 @@ class ProductRepository:
             return db.execute_one(query, (slug,))
     
     @staticmethod
+    def get_product_images(product_id):
+        query = """
+            SELECT id, image, alt_text, is_main, display_order, created_at
+            FROM product_images
+            WHERE product_id = %s::uuid
+            ORDER BY is_main DESC, display_order ASC, created_at ASC
+        """
+        with SQLManager() as db:
+            return db.execute(query, (product_id,))
+    
+    @staticmethod
     def search_products(search_query):
         query = """
             SELECT 
                 p.id,
                 p.name,
-                c.name AS category,
+                c.name AS category_name,
                 p.price,
                 p.discount,
-                (p.price * (1 - p.discount)) AS final_price,
-                p.description
+                ROUND(p.price * (1 - p.discount), 2) AS final_price,
+                p.description,
+                p.image
             FROM products AS p
             INNER JOIN categories AS c ON p.category_id = c.id
             WHERE (p.name ILIKE %s OR p.description ILIKE %s)
                 AND p.available = TRUE
-            ORDER BY final_price DESC
+            ORDER BY p.name ASC
         """
         search_pattern = f"%{search_query}%"
         with SQLManager() as db:
             return db.execute(query, (search_pattern, search_pattern))
     
     @staticmethod
-    def get_top_products(limit = 10):
+    def get_top_products(limit=10):
         query = """
             SELECT 
                 p.id,
                 p.name,
                 p.price,
                 p.discount,
+                p.image,
                 COUNT(DISTINCT oi.order_id) as order_count,
-                SUM(oi.quantity) as total_sold,
-                SUM(oi.price * oi.quantity) as revenue
+                COALESCE(SUM(oi.quantity), 0) as total_sold,
+                COALESCE(SUM(oi.price * oi.quantity), 0) as revenue
             FROM products p
             LEFT JOIN order_items oi ON p.id = oi.product_id
             LEFT JOIN orders o ON oi.order_id = o.id AND o.paid = TRUE
             WHERE p.available = TRUE
-            GROUP BY p.id, p.name, p.price, p.discount
-            ORDER BY total_sold DESC NULLS LAST, revenue DESC NULLS LAST
+            GROUP BY p.id, p.name, p.price, p.discount, p.image
+            ORDER BY total_sold DESC, revenue DESC
             LIMIT %s
         """
         with SQLManager() as db:
@@ -259,7 +262,7 @@ class CategoryRepository:
 class OrderRepository:
     @staticmethod
     def create_order_with_items(user_id, first_name, last_name, email,
-                                city, address, postal_code, items) :
+                                city, address, postal_code, items):
         import json
         
         items_json = json.dumps(items)
@@ -267,24 +270,15 @@ class OrderRepository:
         query = """
             SELECT create_one_order_with_items(
                 %s::uuid, %s, %s, %s, %s, %s, %s, %s::jsonb
-            )
+            ) as order_id
         """
         
         with SQLManager() as db:
-            db.cursor.execute(query, (
+            result = db.execute_one(query, (
                 user_id, first_name, last_name, email,
                 city, address, postal_code, items_json
             ))
-            db.connection.commit()
-            
-            db.cursor.execute("""
-                SELECT id FROM orders 
-                WHERE user_id = %s::uuid 
-                ORDER BY created_at DESC 
-                LIMIT 1
-            """, (user_id,))
-            result = db.cursor.fetchone()
-            return str(result['id']) if result else None
+            return str(result['order_id']) if result else None
     
     @staticmethod
     def get_user_orders(user_id):
@@ -300,7 +294,7 @@ class OrderRepository:
                 o.created_at,
                 o.paid,
                 COUNT(oi.id) as items_count,
-                SUM(oi.price * oi.quantity) as total_amount
+                COALESCE(SUM(oi.price * oi.quantity), 0) as total_amount
             FROM orders o
             LEFT JOIN order_items oi ON o.id = oi.order_id
             WHERE o.user_id = %s::uuid
@@ -337,7 +331,7 @@ class OrderRepository:
                 oi.quantity,
                 oi.price,
                 p.discount,
-                oi.price * oi.quantity * (1 - COALESCE(p.discount, 0)) as item_total
+                oi.price * oi.quantity as item_total
             FROM order_items oi
             JOIN products p ON oi.product_id = p.id
             WHERE oi.order_id = %s::uuid
@@ -350,7 +344,7 @@ class OrderRepository:
             return order
     
     @staticmethod
-    def process_payment(order_id: str):
+    def process_payment(order_id):
         query = "CALL process_payment(%s::uuid)"
         with SQLManager() as db:
             db.cursor.execute(query, (order_id,))
@@ -428,14 +422,14 @@ class StatisticsRepository:
 
 class LogRepository:
     @staticmethod
-    def cleanup_old_logs(days = 90):
+    def cleanup_old_logs(days=90):
         query = "CALL cleanup_old_logs(%s)"
         with SQLManager() as db:
             db.cursor.execute(query, (days,))
             db.connection.commit()
     
     @staticmethod
-    def get_recent_logs(limit = 50):
+    def get_recent_logs(limit=50):
         query = """
             SELECT 
                 le.id,
@@ -466,7 +460,7 @@ class LogRepository:
             db.execute_update(query, (user_id, action, json.dumps(details), status))
 
 
-class UserNoteRepository:  
+class UserNoteRepository:
     @staticmethod
     def create_note(user_id, title, content):
         query = """
@@ -509,13 +503,13 @@ class UserNoteRepository:
             return db.execute_update(query, (title, content, note_id))
     
     @staticmethod
-    def delete_note(note_id: str):
+    def delete_note(note_id):
         query = "DELETE FROM user_notes WHERE id = %s::uuid"
         with SQLManager() as db:
             return db.execute_update(query, (note_id,))
 
 
-class WishlistRepository:   
+class WishlistRepository:
     @staticmethod
     def create_wishlist(user_id, name, description=''):
         query = """
@@ -577,20 +571,8 @@ class WishlistRepository:
         """
         with SQLManager() as db:
             return db.execute_one(query, (wishlist_id, product_id))
-    
-    @staticmethod
-    def remove_from_wishlist(wishlist_item_id):
-        query = "DELETE FROM wishlist_items WHERE id = %s::uuid"
-        with SQLManager() as db:
-            return db.execute_update(query, (wishlist_item_id,))
-    
-    @staticmethod
-    def delete_wishlist(wishlist_id):
-        query = "DELETE FROM wishlists WHERE id = %s::uuid"
-        with SQLManager() as db:
-            return db.execute_update(query, (wishlist_id,))
-
-
+        
+        
 class ProductReviewRepository:
     @staticmethod
     def create_review(product_id, user_id, rating, comment):
@@ -669,28 +651,4 @@ class ProductReviewRepository:
         """
         with SQLManager() as db:
             result = db.execute_one(query, (product_id,))
-            return result if result else {'avg_rating': 0, 'reviews_count': 0}
-
-
-class ProductImageRepository:
-    @staticmethod
-    def get_product_images(product_id):
-        query = """
-            SELECT id, image, alt_text, is_main, display_order, created_at
-            FROM product_images
-            WHERE product_id = %s::uuid
-            ORDER BY is_main DESC, display_order ASC
-        """
-        with SQLManager() as db:
-            return db.execute(query, (product_id,))
-    
-    @staticmethod
-    def add_product_image(product_id, image_url, alt_text = '', is_main= False):
-        query = """
-            INSERT INTO product_images 
-            (product_id, image, alt_text, is_main, created_at)
-            VALUES (%s::uuid, %s, %s, %s, NOW())
-            RETURNING id
-        """
-        with SQLManager() as db:
-            return db.execute_one(query, (product_id, image_url, alt_text, is_main))
+            return result if result else {'avg_rating': 0, 'reviews_count': 0}        

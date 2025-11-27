@@ -1,4 +1,6 @@
 from django.urls import path
+from django.conf.urls.static import static
+from django.conf import settings
 
 from . import sql_views
 from . import api_views  
@@ -51,3 +53,5 @@ urlpatterns = [
     path('reviews/update/<str:review_id>/', sql_views.update_review_view, name='update_review'),
     path('reviews/delete/<str:review_id>/', sql_views.delete_review_view, name='delete_review'),
 ]
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

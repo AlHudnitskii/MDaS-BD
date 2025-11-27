@@ -19,7 +19,6 @@ DECLARE
     v_product_name VARCHAR(50);
     v_total_amount DECIMAL(10,2) := 0;
 BEGIN
-    -- Вставка заказа (включая fix: first_name, last_name, email)
     INSERT INTO orders (
         user_id, first_name, last_name, email,
         city, address, postal_code, 
@@ -34,7 +33,6 @@ BEGIN
 
     FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
     LOOP 
-      -- ... (логика обработки order_items) ...
       
       SELECT price, available, name 
       INTO v_product_price, v_available, v_product_name
@@ -63,7 +61,6 @@ BEGIN
     RAISE NOTICE 'Order % created successfully with % items. Total: $%:',
         v_order_id, jsonb_array_length(p_items), v_total_amount;
     
-    -- !!! ДОБАВЛЕН ИСПРАВЛЕНИЕ: ВОЗВРАТ ID !!!
     RETURN v_order_id; 
 END;
 $$;
