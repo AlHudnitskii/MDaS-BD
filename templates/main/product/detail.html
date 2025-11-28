@@ -24,7 +24,9 @@
                     {% if product.discount > 0 %}
                         <span class="price-discount">${{ product.price }}</span>
                         ${{ product.final_price }}
-                        <p class="text-danger">- {% widthratio product.discount 1 100 %}%</p>
+                        <span style="background: #ff4757; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.9rem; margin-left: 0.5rem;">
+                            -{% widthratio product.discount 1 100 %}%
+                        </span>
                     {% else %}
                         ${{ product.price }}
                     {% endif %}
@@ -35,7 +37,7 @@
                 {{ product.description }}
             </p>
             
-            <form method="post" action="/cart/add/{{ product.id }}/" style="margin-bottom: 2rem;">
+            <form method="post" action="/cart/add/{{ product.id }}/" style="margin-bottom: 1rem;">
                 {% csrf_token %}
                 <input type="hidden" name="slug" value="{{ product.slug }}">
                 <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
@@ -49,11 +51,19 @@
             </form>
             
             {% if user_authenticated %}
-            <div style="margin-top: 1rem;">
-                <button onclick="showWishlistModal()" class="btn btn-secondary">
+                {% if user_wishlists|length > 0 %}
+                <button onclick="showWishlistModal()" class="btn btn-secondary" style="width: 100%;">
                     Add to Wishlist
                 </button>
-            </div>
+                {% else %}
+                <a href="{% url 'wishlists' %}" class="btn btn-secondary" style="width: 100%; text-align: center; display: block;">
+                    Create a Wishlist First
+                </a>
+                {% endif %}
+            {% else %}
+            <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-secondary" style="width: 100%; text-align: center; display: block;">
+                Login to Save to Wishlist
+            </a>
             {% endif %}
         </div>
     </div>
@@ -61,41 +71,108 @@
     <div style="border-top: 2px solid #e0e0e0; padding-top: 2rem;">
         <h2 style="margin-bottom: 1.5rem;">Customer Reviews</h2>
         
+        {% if avg_rating.reviews_count > 0 %}
+        <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="font-size: 2rem; font-weight: bold;">{{ avg_rating.avg_rating }}</div>
+                <div>
+                    <div style="color: #ffc107; font-size: 1.5rem;">
+                        {% for i in "12345" %}
+                            <span>{% if forloop.counter <= avg_rating.avg_rating %}★{% else %}☆{% endif %}</span>
+                        {% endfor %}
+                    </div>
+                    <div style="color: #666;">Based on {{ avg_rating.reviews_count }} review{{ avg_rating.reviews_count|pluralize }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         <a href="/product/{{ product.slug }}/reviews/" class="btn btn-primary" style="margin-bottom: 2rem;">
-            View All Reviews
+            View All Reviews ({{ avg_rating.reviews_count }})
         </a>
         
         {% if user_authenticated %}
-        <div id="wishlistModal" class="modal" style="display:none;">
-            <div class="modal-content" style="padding: 2rem; background: #fff; border-radius: 12px;">
-                <h3>Select Wishlist</h3>
-
-                <form method="post" action="">
-                    {% csrf_token %}
-                    
-                    <select name="wishlist_id" required class="form-control" style="margin-bottom: 1rem;">
-                        {% for list in wishlists %}
-                            <option value="{{ list.id }}">{{ list.name }}</option>
-                        {% endfor %}
-                    </select>
-
-                    <input type="hidden" id="modalProductId" name="product_id">
-
-                    <button class="btn btn-primary" type="submit">
-                        Add
-                    </button>
-                </form>
-            </div>
+        <div style="background: #f8f9fa; padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+            <h3 style="margin-bottom: 1rem;">Write a Review</h3>
+            <form method="post" action="{% url 'create_review' product.id %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label">Rating</label>
+                    <div id="rating" style="font-size: 2rem; margin-bottom: 1rem;">
+                        <span onclick="setRating(1)" style="cursor: pointer; color: #ddd;">★</span>
+                        <span onclick="setRating(2)" style="cursor: pointer; color: #ddd;">★</span>
+                        <span onclick="setRating(3)" style="cursor: pointer; color: #ddd;">★</span>
+                        <span onclick="setRating(4)" style="cursor: pointer; color: #ddd;">★</span>
+                        <span onclick="setRating(5)" style="cursor: pointer; color: #ddd;">★</span>
+                    </div>
+                    <input type="hidden" id="ratingValue" name="rating" value="5">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Your Review</label>
+                    <textarea name="comment" class="form-control" rows="4" required placeholder="Share your experience with this product..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Submit Review</button>
+            </form>
         </div>
-
-        <script>
-        function showWishlistModal() {
-            document.getElementById('wishlistModal').style.display = 'block';
-        }
-        </script>
+        {% else %}
+        <p style="text-align: center; padding: 2rem; background: #f8f9fa; border-radius: 12px;">
+            <a href="{% url 'login' %}?next={{ request.path }}" style="color: #667eea;">Login</a> to write a review
+        </p>
         {% endif %}
     </div>
 </div>
+
+{% if user_authenticated and user_wishlists|length > 0 %}
+<div id="wishlistModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 2rem; border-radius: 12px; max-width: 400px; width: 90%; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
+        <h3 style="margin-bottom: 1rem;">Add to Wishlist</h3>
+        
+        <div style="flex: 1; overflow-y: auto; margin-bottom: 1rem;">
+            {% for wishlist in user_wishlists %}
+            <form method="post" action="{% url 'add_to_wishlist' wishlist.id product.id %}" style="margin-bottom: 0.5rem;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary" style="width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; padding: 1rem;">
+                    <div>
+                        <div style="font-weight: 600;">{{ wishlist.name }}</div>
+                        {% if wishlist.description %}
+                        <div style="font-size: 0.85rem; opacity: 0.8;">{{ wishlist.description|truncatewords:10 }}</div>
+                        {% endif %}
+                    </div>
+                    <span style="background: white; color: #667eea; padding: 0.3rem 0.6rem; border-radius: 12px; font-size: 0.85rem;">
+                        {{ wishlist.items_count }} items
+                    </span>
+                </button>
+            </form>
+            {% endfor %}
+        </div>
+        
+        <div style="border-top: 1px solid #e0e0e0; padding-top: 1rem;">
+            <button onclick="hideWishlistModal()" class="btn btn-secondary" style="width: 100%; margin-bottom: 0.5rem;">
+                Cancel
+            </button>
+            <a href="{% url 'create_wishlist' %}" class="btn btn-primary" style="width: 100%; text-align: center; display: block;">
+                + Create New Wishlist
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function showWishlistModal() {
+    document.getElementById('wishlistModal').style.display = 'flex';
+}
+
+function hideWishlistModal() {
+    document.getElementById('wishlistModal').style.display = 'none';
+}
+
+document.getElementById('wishlistModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideWishlistModal();
+    }
+});
+</script>
+{% endif %}
 
 <script>
 let currentRating = 5;
@@ -110,7 +187,9 @@ function setRating(rating) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    setRating(5);
+    if (document.getElementById('rating')) {
+        setRating(5);
+    }
 });
 </script>
 {% endblock %}

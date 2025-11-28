@@ -1,6 +1,13 @@
+import os
+import uuid
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from pathlib import Path
+from django.core.paginator import Paginator
+from django.conf import settings
 
 from .sql_manager import (
     SQLManager,
@@ -186,41 +193,89 @@ def logout_view(request):
 
 def profile_view(request):
     user_id = request.session.get('user_id')
-    
+
     if not user_id:
         messages.warning(request, 'Please login to access your profile')
         return redirect('login')
-    
+
     try:
         user_data = UserRepository.get_user_by_username(request.session.get('username'))
         orders = OrderRepository.get_user_orders(user_id)
-        
+
         if request.method == 'POST':
             first_name = request.POST.get('first_name')
             last_name = request.POST.get('last_name')
+            username = request.POST.get('username')
             email = request.POST.get('email')
+            image_file = request.FILES.get('image')
+
+            relative_path = None
+
+            if image_file:
+                allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+                if image_file.content_type not in allowed_types:
+                    messages.error(request, 'Invalid file type. Allowed: JPEG, PNG, GIF, WEBP')
+                    return redirect('profile')
+
+                if image_file.size > 5 * 1024 * 1024:
+                    messages.error(request, 'File too large. Maximum size: 5MB')
+                    return redirect('profile')
+
+                ext = Path(image_file.name).suffix.lower()
+                filename = f"{uuid.uuid4()}{ext}"  # 
+                relative_path = f"users/{filename}"
+                full_path = settings.MEDIA_ROOT / relative_path
+
+                full_path.parent.mkdir(parents=True, exist_ok=True)
+
+                with open(full_path, 'wb+') as destination:
+                    for chunk in image_file.chunks():
+                        destination.write(chunk)
+
+                if user_data.get('image_url') and 'noimage' not in str(user_data['image_url']):
+                    old_image_path = settings.MEDIA_ROOT / user_data['image_url']
+                    if old_image_path.exists():
+                        try:
+                            os.remove(old_image_path)
+                        except Exception:
+                            pass
+
+            update_kwargs = {
+                'first_name': first_name,
+                'last_name': last_name,
+                'username': username,
+                'email': email
+            }
             
-            UserRepository.update_user_profile(user_id, first_name, last_name, email)
+            if relative_path is not None:
+                update_kwargs['image_url'] = relative_path
+
+            UserRepository.update_user_profile(user_id, **update_kwargs)
             
+            request.session['username'] = username
+            request.session['user_id'] = user_id
+            request.session['is_authenticated'] = True
+        
+            fields_updated = list(update_kwargs.keys())
             LogRepository.log_action(
                 user_id,
                 'PROFILE_UPDATE',
-                {'fields_updated': ['first_name', 'last_name', 'email']},
+                {'fields_updated': fields_updated},
                 'SUCCESS'
             )
-            
+
             messages.success(request, 'Profile updated successfully')
             return redirect('profile')
-        
+
         context = {
             'user': user_data,
             'orders': orders
         }
-        
+
         return render(request, 'users/profile.html', context)
-    
-    except Exception:
-        messages.error(request, 'Error loading profile')
+
+    except Exception as e:
+        messages.error(request, f'Error loading profile: {str(e)}')
         return redirect('product_list')
 
 
@@ -272,17 +327,27 @@ def product_detail_view(request, slug):
             reviews = []
             avg_rating = {'avg_rating': 0, 'reviews_count': 0}
         
+        user_wishlists = []
+        if request.session.get('is_authenticated'):
+            try:
+                user_id = request.session.get('user_id')
+                user_wishlists = WishlistRepository.get_user_wishlists(user_id)
+            except Exception as e:
+                print(f"Error loading wishlists: {e}")
+                pass
+        
         context = {
             'product': product,
-            'reviews': reviews[:3], 
+            'reviews': reviews[:3],
             'avg_rating': avg_rating,
-            'user_authenticated': request.session.get('is_authenticated', False)
+            'user_authenticated': request.session.get('is_authenticated', False),
+            'user_wishlists': user_wishlists  
         }
         
         return render(request, 'main/product/detail.html', context)
     
-    except Exception:
-        messages.error(request, 'Error loading product')
+    except Exception as e:
+        messages.error(request, f'Error loading product: {str(e)}')
         return redirect('product_list')
 
 
@@ -369,42 +434,64 @@ def cart_remove_view(request, product_id):
 
 # ============= ОФОРМЛЕНИЕ ЗАКАЗА =============
 
+
 def order_create_view(request):
     user_id = request.session.get('user_id')
-    
+
     if not user_id:
         messages.warning(request, 'Please login to create an order')
         return redirect('login')
-    
+
     cart = request.session.get('cart', {})
-    
+
     if not cart:
         messages.warning(request, 'Your cart is empty')
         return redirect('cart_detail')
-    
-    if request.method == 'POST':
+
+    product_ids = [pid for pid in cart.keys()]
+    products = ProductRepository.get_products_by_ids(product_ids)
+
+    cart_items = []
+    total_price = 0
+
+    for product in products:
+        pid = str(product["id"])
+        item_data = cart[pid]
+
+        quantity = item_data["quantity"]
+        price = item_data["price"]
+        total = price * quantity
+
+        cart_items.append({
+            "product": product,
+            "quantity": quantity,
+            "total_price": total
+        })
+
+        total_price += total
+
+    if request.method == "POST":
         try:
-            first_name = request.POST.get('first_name')
-            last_name = request.POST.get('last_name')
-            email = request.POST.get('email')
-            city = request.POST.get('city')
-            address = request.POST.get('address')
-            postal_code = request.POST.get('postal_code')
-            
-            items = []
-            for product_id, item_data in cart.items():
-                items.append({
-                    'product_id': product_id,
-                    'quantity': item_data['quantity']
-                })
-            
+            first_name = request.POST.get("first_name")
+            last_name = request.POST.get("last_name")
+            email = request.POST.get("email")
+            city = request.POST.get("city")
+            address = request.POST.get("address")
+            postal_code = request.POST.get("postal_code")
+
+            items = [
+                {"product_id": str(item["product"]["id"]), "quantity": item["quantity"]}
+                for item in cart_items
+            ]
+
+
             order_id = OrderRepository.create_order_with_items(
                 user_id, first_name, last_name, email,
                 city, address, postal_code, items
             )
-            
+
             if order_id:
-                request.session['cart'] = {}
+                request.session["cart"] = {}
                 request.session.modified = True
                 
                 LogRepository.log_action(
@@ -413,23 +500,22 @@ def order_create_view(request):
                     {'order_id': order_id, 'items_count': len(items)},
                     'SUCCESS'
                 )
-                
-                messages.success(request, f'Order #{order_id} created successfully!')
-                return redirect('order_success', order_id=order_id)
-            else:
-                messages.error(request, 'Failed to create order')
-        
+
+                return redirect("order_success", order_id=order_id)
+
+            messages.error(request, "Failed to create order")
+
         except Exception as e:
-            messages.error(request, f'Error creating order: {str(e)}')
-    
-    total_price = sum(item['price'] * item['quantity'] for item in cart.values())
-    
+            messages.error(request, f"Error creating order: {e}")
+
     context = {
-        'cart': cart,
-        'total_price': total_price
+        "cart": cart_items,
+        "total_price": total_price
     }
-    
-    return render(request, 'orders/order/create.html', context)
+
+    return render(request, "orders/order/create.html", context)
+
+
 
 
 def order_success_view(request, order_id):
@@ -469,28 +555,84 @@ def statistics_view(request):
 
 def cleanup_logs_view(request):
     user_id = request.session.get('user_id')
+    username = request.session.get('username')
     
-    if not user_id:
-        messages.warning(request, 'Please login first')
-        return redirect('login')
-    days = int(request.POST.get('days', 90))
-        
+    days = 90
+    if request.method == 'POST':
+        days = int(request.POST.get('days', 90))
+    else:
+        days = int(request.GET.get('days', 90))
+    
     try:
-        LogRepository.cleanup_old_logs(days)
+        deleted_count = LogRepository.cleanup_old_logs(days)
         
-        LogRepository.log_action(
-            user_id,
-            'LOGS_CLEANUP',
-            {'days': days},
-            'SUCCESS'
+        if deleted_count > 0:
+            LogRepository.log_action(
+                user_id,
+                'LOGS_CLEANUP',
+                {
+                    'days': days,
+                    'deleted_count': deleted_count
+                },
+                'SUCCESS'
+            )
+            
+            messages.success(request, f'Successfully cleaned up {deleted_count} log entries older than {days} days')
+        else:
+            messages.info(request, f'No logs found older than {days} days')
+        
+    except Exception as e:
+        messages.error(request, f'Error cleaning up logs: {str(e)}')
+    
+    return redirect('admin_logs')
+
+
+@require_http_methods(["GET"])
+def admin_logs_view(request):
+    username = request.session.get('username')
+    
+    if username != 'admin':
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('profile')
+    
+    try:
+        action_type = request.GET.get('action_type', '')
+        status = request.GET.get('status', '')
+        user_filter = request.GET.get('user', '')
+        days = request.GET.get('days', '7')
+        
+        logs = LogRepository.get_filtered_logs(
+            action_type=action_type if action_type else None,
+            status=status if status else None,
+            user_filter=user_filter if user_filter else None,
+            days=int(days) if days.isdigit() else 7
         )
         
-        messages.success(request, f'Logs older than {days} days have been cleaned up')
-    except Exception:
-        messages.error(request, 'Error cleaning up logs')
-
-    return redirect('profile')
-
+        stats = LogRepository.get_logs_statistics()
+        
+        action_types = LogRepository.get_unique_action_types()
+        
+        paginator = Paginator(logs, 50)  
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        
+        context = {
+            'logs': page_obj,
+            'stats': stats,
+            'action_types': action_types,
+            'current_filters': {
+                'action_type': action_type,
+                'status': status,
+                'user': user_filter,
+                'days': days
+            }
+        }
+        
+        return render(request, 'admin/logs.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'Error loading logs: {str(e)}')
+        return redirect('profile')
 
 def process_payment_view(request, order_id):
     user_id = request.session.get('user_id')
@@ -608,6 +750,7 @@ def delete_note_view(request, note_id):
 
 # ============= WISHLISTS =============
 
+@require_http_methods(["GET"])
 def wishlists_view(request):
     user_id = request.session.get('user_id')
     username = request.session.get('username')
@@ -623,21 +766,27 @@ def wishlists_view(request):
             'user_authenticated': True,
             'username': username
         })
-    except Exception:
-        messages.error(request, 'Error loading wishlists')
+    except Exception as e:
+        messages.error(request, f'Error loading wishlists: {str(e)}')
         return redirect('profile')
 
 
+@require_http_methods(["GET"])
 def wishlist_detail_view(request, wishlist_id):
     user_id = request.session.get('user_id')
 
     if not user_id:
+        messages.warning(request, 'Please login first')
         return redirect('login')
 
     try:
         wishlist = WishlistRepository.get_wishlist(wishlist_id)
+        
+        if not wishlist:
+            messages.error(request, 'Wishlist not found')
+            return redirect('wishlists')
 
-        if wishlist['user_id'] != user_id:
+        if str(wishlist['user_id']) != user_id:
             messages.error(request, "Access denied")
             return redirect('wishlists')
 
@@ -649,10 +798,9 @@ def wishlist_detail_view(request, wishlist_id):
             'user_authenticated': True
         })
 
-    except Exception:
-        messages.error(request, 'Error loading wishlist')
+    except Exception as e:
+        messages.error(request, f'Error loading wishlist: {str(e)}')
         return redirect('wishlists')
-
 
 
 @require_http_methods(["POST"])
@@ -662,21 +810,57 @@ def create_wishlist_view(request):
     if not user_id:
         return redirect('login')
     
-    name = request.POST.get('name')
-    description = request.POST.get('description', '')
+    name = request.POST.get('name', '').strip()
+    description = request.POST.get('description', '').strip()
+    
+    if not name:
+        messages.error(request, 'Wishlist name is required')
+        return redirect('wishlists')
     
     try:
         WishlistRepository.create_wishlist(user_id, name, description)
         LogRepository.log_action(user_id, 'WISHLIST_CREATED', {'name': name}, 'SUCCESS')
-        messages.success(request, 'Wishlist created successfully')
-    except Exception:
-        messages.error(request, 'Error creating wishlist')
+        messages.success(request, f'Wishlist "{name}" created successfully')
+    except Exception as e:
+        messages.error(request, f'Error creating wishlist: {str(e)}')
     
     return redirect('wishlists')
 
 
 @require_http_methods(["POST"])
-def add_to_wishlist_view(request, wishlist_id, product_id):
+def update_wishlist_view(request, wishlist_id):
+    user_id = request.session.get('user_id')
+
+    if not user_id:
+        return redirect('login')
+
+    name = request.POST.get('name', '').strip()
+    description = request.POST.get('description', '').strip()
+
+    if not name:
+        messages.error(request, 'Wishlist name is required')
+        return redirect('wishlist_detail', wishlist_id=wishlist_id)
+
+    try:
+        wishlist = WishlistRepository.get_wishlist(wishlist_id)
+
+        if not wishlist or str(wishlist['user_id']) != user_id:
+            messages.error(request, 'Access denied')
+            return redirect('wishlists')
+
+        WishlistRepository.update_wishlist(wishlist_id, name, description)
+        LogRepository.log_action(user_id, 'WISHLIST_UPDATED', 
+                                {'wishlist_id': wishlist_id, 'name': name}, 'SUCCESS')
+        messages.success(request, 'Wishlist updated successfully')
+
+    except Exception as e:
+        messages.error(request, f'Error updating wishlist: {str(e)}')
+
+    return redirect('wishlist_detail', wishlist_id=wishlist_id)
+
+
+@require_http_methods(["POST"])
+def delete_wishlist_view(request, wishlist_id):
     user_id = request.session.get('user_id')
 
     if not user_id:
@@ -685,24 +869,52 @@ def add_to_wishlist_view(request, wishlist_id, product_id):
     try:
         wishlist = WishlistRepository.get_wishlist(wishlist_id)
 
-        if wishlist['user_id'] != user_id:
+        if not wishlist or str(wishlist['user_id']) != user_id:
             messages.error(request, 'Access denied')
             return redirect('wishlists')
 
-        WishlistRepository.add_to_wishlist(wishlist_id, product_id)
-        LogRepository.log_action(
-            user_id,
-            'PRODUCT_ADDED_TO_WISHLIST',
-            {'wishlist_id': wishlist_id, 'product_id': product_id},
-            'SUCCESS'
-        )
-        messages.success(request, 'Product added to wishlist')
+        WishlistRepository.delete_wishlist(wishlist_id)
+        LogRepository.log_action(user_id, 'WISHLIST_DELETED', 
+                                {'wishlist_id': wishlist_id}, 'SUCCESS')
+        messages.success(request, 'Wishlist deleted successfully')
 
-    except Exception:
-        messages.error(request, 'Error adding to wishlist')
+    except Exception as e:
+        messages.error(request, f'Error deleting wishlist: {str(e)}')
 
-    return redirect('wishlist_detail', wishlist_id=wishlist_id)
+    return redirect('wishlists')
 
+
+@require_http_methods(["POST"])
+def add_to_wishlist_view(request, wishlist_id, product_id):
+    user_id = request.session.get('user_id')
+
+    if not user_id:
+        messages.warning(request, 'Please login first')
+        return redirect('login')
+
+    try:
+        wishlist = WishlistRepository.get_wishlist(wishlist_id)
+
+        if not wishlist or str(wishlist['user_id']) != user_id:
+            messages.error(request, 'Access denied')
+            return redirect('wishlists')
+
+        if WishlistRepository.check_product_in_wishlist(wishlist_id, product_id):
+            messages.warning(request, 'This product is already in your wishlist')
+        else:
+            WishlistRepository.add_to_wishlist(wishlist_id, product_id)
+            LogRepository.log_action(
+                user_id,
+                'PRODUCT_ADDED_TO_WISHLIST',
+                {'wishlist_id': wishlist_id, 'product_id': product_id},
+                'SUCCESS'
+            )
+            messages.success(request, 'Product added to wishlist')
+
+    except Exception as e:
+        messages.error(request, f'Error adding to wishlist: {str(e)}')
+
+    return redirect(request.META.get('HTTP_REFERER', 'wishlists'))
 
 
 @require_http_methods(["POST"])
@@ -714,9 +926,14 @@ def remove_from_wishlist_view(request, wishlist_item_id):
 
     try:
         item = WishlistRepository.get_item(wishlist_item_id)
+        
+        if not item:
+            messages.error(request, 'Item not found')
+            return redirect('wishlists')
+
         wishlist = WishlistRepository.get_wishlist(item['wishlist_id'])
 
-        if wishlist['user_id'] != user_id:
+        if str(wishlist['user_id']) != user_id:
             messages.error(request, 'Access denied')
             return redirect('wishlists')
 
@@ -725,25 +942,15 @@ def remove_from_wishlist_view(request, wishlist_item_id):
         LogRepository.log_action(
             user_id,
             'PRODUCT_REMOVED_FROM_WISHLIST',
-            {'item_id': wishlist_item_id},
+            {'item_id': wishlist_item_id, 'product_id': str(item['product_id'])},
             'SUCCESS'
         )
         messages.success(request, 'Product removed from wishlist')
 
-    except Exception:
-        messages.error(request, 'Error removing from wishlist')
+    except Exception as e:
+        messages.error(request, f'Error removing from wishlist: {str(e)}')
 
-    return redirect('wishlist_detail', wishlist_id=wishlist['id'])
-
-def toggle_wishlist(request, product_id):
-    user_id = request.session.get("user_id")
-
-    if not user_id:
-        messages.warning(request, "Please login first.")
-        return redirect("login")
-
-    WishlistRepository.toggle(user_id, product_id)
-    return redirect(request.META.get("HTTP_REFERER", "product_list"))
+    return redirect(request.META.get('HTTP_REFERER', 'wishlists'))
 
 
 # ============= PRODUCT REVIEWS =============

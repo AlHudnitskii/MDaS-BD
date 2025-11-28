@@ -2,66 +2,292 @@
 
 {% block title %}My Wishlists{% endblock %}
 
+{% block extra_head %}
+<style>
+    <style>
+    .wishlist-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    .wishlist-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-create {
+        padding: 0.5rem 1rem;
+        background: #4a6cf7;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .create-form-wrapper {
+        border: 1px solid #ccc;
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    .wishlists-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 1rem;
+    }
+
+    .wishlist-card {
+        border: 1px solid #ddd;
+        padding: 1rem;
+        border-radius: 6px;
+    }
+
+    .wishlist-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: .5rem;
+    }
+
+    .wishlist-description {
+        color: #555;
+        font-size: .9rem;
+        margin-bottom: .5rem;
+    }
+
+    .wishlist-meta {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        font-size: .85rem;
+        color: #666;
+    }
+
+    .wishlist-actions {
+        display: flex;
+        gap: .5rem;
+    }
+
+    .btn-view {
+        flex: 1;
+        text-align: center;
+        padding: .5rem;
+        background: #4a6cf7;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+    }
+
+    .btn-icon {
+        padding: .5rem;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-edit {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-delete {
+        background: #e74c3c;
+        color: white;
+    }
+
+    .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 2rem;
+        border: 1px dashed #ccc;
+    }
+
+    /* Modal */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.4);
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 6px;
+        width: 90%;
+        max-width: 400px;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .btn-secondary,
+    .btn-success {
+        flex: 1;
+        padding: .5rem;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #777;
+    }
+
+    .btn-success {
+        background: #27ae60;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+<div class="wishlist-container">
+    <div class="wishlist-header">
         <h1>My Wishlists</h1>
-        <button onclick="showCreateForm()" class="btn btn-primary">+ New Wishlist</button>
+        <button onclick="showCreateForm()" class="btn-create">+ New Wishlist</button>
     </div>
 
-    <div id="createForm" style="display: none; margin-bottom: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
-        <h3 style="margin-bottom: 1rem;">Create New Wishlist</h3>
+    <!-- Форма создания wishlist -->
+    <div id="createForm" class="create-form-wrapper" style="display: none;">
+        <h3 style="margin-bottom: 1.5rem; font-size: 1.5rem; color: #2c3e50;">Create New Wishlist</h3>
         <form method="post" action="{% url 'create_wishlist' %}">
             {% csrf_token %}
             <div class="form-group">
-                <label class="form-label">Name</label>
-                <input type="text" name="name" class="form-control" required>
+                <label class="form-label">Name *</label>
+                <input type="text" name="name" class="form-control" required placeholder="e.g., Birthday Wishlist">
             </div>
             <div class="form-group">
-                <label class="form-label">Description</label>
-                <textarea name="description" class="form-control" rows="3"></textarea>
+                <label class="form-label">Description (optional)</label>
+                <textarea name="description" class="form-control" rows="3" placeholder="What is this wishlist for?"></textarea>
             </div>
             <div style="display: flex; gap: 1rem;">
-                <button type="submit" class="btn btn-success">Create Wishlist</button>
-                <button type="button" onclick="hideCreateForm()" class="btn btn-secondary">Cancel</button>
+                <button type="submit" class="btn-success" style="flex: 1;">Create Wishlist</button>
+                <button type="button" onclick="hideCreateForm()" class="btn-secondary" style="flex: 1;">Cancel</button>
             </div>
         </form>
     </div>
 
-    <div class="grid">
+    <!-- Список wishlist'ов -->
+    <div class="wishlists-grid">
         {% for wishlist in wishlists %}
-        <div class="card" style="background: white; border: 2px solid #667eea;">
-            <h3 style="margin-bottom: 0.5rem; color: #667eea;">{{ wishlist.name }}</h3>
+        <div class="wishlist-card">
+            <h3 class="wishlist-title">{{ wishlist.name }}</h3>
             {% if wishlist.description %}
-            <p style="color: #666; margin-bottom: 1rem;">{{ wishlist.description }}</p>
+            <p class="wishlist-description">{{ wishlist.description }}</p>
             {% endif %}
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <span style="background: #667eea; color: white; padding: 0.3rem 0.8rem; border-radius: 20px;">
-                    {{ wishlist.items_count }} items
+            
+            <div class="wishlist-meta">
+                <span class="items-badge">
+                    {{ wishlist.items_count }} item{{ wishlist.items_count|pluralize }}
                 </span>
-                <span style="color: #999; font-size: 0.9rem;">
-                    {{ wishlist.created_at|date:"Y-m-d" }}
+                <span class="wishlist-date">
+                    {{ wishlist.created_at|date:"M d, Y" }}
                 </span>
             </div>
-            <a href="{% url 'wishlist_detail' wishlist.id %}" class="btn btn-primary" style="width: 100%;">
-                View Items
-            </a>
+            
+            <div class="wishlist-actions">
+                <a href="{% url 'wishlist_detail' wishlist.id %}" class="btn-view">
+                    View Items
+                </a>
+                <button onclick="showEditForm('{{ wishlist.id }}', '{{ wishlist.name|escapejs }}', '{{ wishlist.description|escapejs }}')" 
+                        class="btn-icon btn-edit" title="Edit">
+                    ✏️
+                </button>
+                <form method="post" action="{% url 'delete_wishlist' wishlist.id %}" style="display: inline; margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-icon btn-delete" 
+                            onclick="return confirm('Delete wishlist &quot;{{ wishlist.name }}&quot;? This will also remove all items in it.')" 
+                            title="Delete">
+                        🗑️
+                    </button>
+                </form>
+            </div>
         </div>
         {% empty %}
-        <p style="grid-column: 1 / -1; text-align: center; color: #999; padding: 2rem;">
-            No wishlists yet. Create your first wishlist!
-        </p>
+        <div class="empty-state">
+            <h3>No wishlists yet</h3>
+            <p>Create your first wishlist to save products for later!</p>
+            <button onclick="showCreateForm()" class="btn-create">Create Your First Wishlist</button>
+        </div>
         {% endfor %}
+    </div>
+</div>
+
+<!-- Модальное окно редактирования -->
+<div id="editModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Edit Wishlist</h3>
+        <form id="editForm" method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Name *</label>
+                <input type="text" id="editName" name="name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea id="editDescription" name="description" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="hideEditModal()" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-success">Update</button>
+            </div>
+        </form>
     </div>
 </div>
 
 <script>
 function showCreateForm() {
-    document.getElementById('createForm').style.display = 'block';
+    const form = document.getElementById('createForm');
+    form.style.display = 'block';
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function hideCreateForm() {
     document.getElementById('createForm').style.display = 'none';
 }
+
+function showEditForm(id, name, description) {
+    document.getElementById('editName').value = name;
+    document.getElementById('editDescription').value = description;
+    document.getElementById('editForm').action = '/wishlists/' + id + '/update/';
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+function hideEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+// Закрытие модального окна по клику вне его
+document.getElementById('editModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideEditModal();
+    }
+});
+
+// Закрытие по Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        hideEditModal();
+    }
+});
 </script>
 {% endblock %}

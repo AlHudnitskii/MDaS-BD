@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="card">
-    <a href="/shop/{{ product.slug }}/" class="btn btn-secondary" style="margin-bottom: 2rem;">
+    <a href="{% url 'product_detail' product.slug %}" class="btn btn-secondary" style="margin-bottom: 2rem;">
         Back to Product
     </a>
     

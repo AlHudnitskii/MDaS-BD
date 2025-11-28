@@ -1,3 +1,4 @@
+import uuid
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from .sql_pool import get_connection_pool
@@ -86,7 +87,7 @@ class UserRepository:
     def get_user_by_username(username):
         query = """
             SELECT id, username, email, first_name, last_name,
-                   password, is_active, is_superuser, date_joined, last_login
+                   password, is_active, image_url, is_superuser, date_joined, last_login
             FROM users
             WHERE username = %s
         """
@@ -110,14 +111,38 @@ class UserRepository:
             return db.execute_one(query, (username, password, email, first_name, last_name))
     
     @staticmethod
-    def update_user_profile(user_id, first_name, last_name, email):
-        query = """
+    def update_user_profile(user_id, first_name=None, last_name=None, email=None, username=None, image_url=None):
+        set_parts = []
+        params = []
+
+        if first_name is not None:
+            set_parts.append("first_name = %s")
+            params.append(first_name)
+        if last_name is not None:
+            set_parts.append("last_name = %s")
+            params.append(last_name)
+        if email is not None:
+            set_parts.append("email = %s")
+            params.append(email)
+        if username is not None:
+            set_parts.append("username = %s")
+            params.append(username)
+        if image_url is not None:
+            set_parts.append("image_url = %s")
+            params.append(image_url)
+
+        if not set_parts:
+            return  
+
+        query = f"""
             UPDATE users
-            SET first_name = %s, last_name = %s, email = %s
+            SET {', '.join(set_parts)}
             WHERE id = %s::uuid
         """
+        params.append(user_id)
+
         with SQLManager() as db:
-            return db.execute_update(query, (first_name, last_name, email, user_id))
+            db.execute_update(query, tuple(params))
 
 
 class ProductRepository:
@@ -235,6 +260,42 @@ class ProductRepository:
         """
         with SQLManager() as db:
             return db.execute(query, (limit,))
+
+    @staticmethod
+    def get_products_by_ids(product_ids):
+        if not product_ids:
+            return []
+
+        uids = []
+        for pid in product_ids:
+            try:
+                uids.append(uuid.UUID(str(pid)))
+            except Exception:
+                continue
+
+        if not uids:
+            return []
+
+        placeholders = ','.join(['%s'] * len(uids))
+        query = f"""
+            SELECT 
+                p.id,
+                p.name,
+                p.slug,
+                p.description,
+                p.price,
+                p.discount,
+                ROUND(p.price * (1 - p.discount), 2) AS final_price,
+                c.name AS category_name,
+                p.image,
+                p.available
+            FROM products AS p
+            INNER JOIN categories AS c ON p.category_id = c.id
+            WHERE p.id IN ({placeholders})
+        """
+
+        with SQLManager() as db:
+            return db.execute(query, tuple(uids))
 
 
 class CategoryRepository:
@@ -423,10 +484,26 @@ class StatisticsRepository:
 class LogRepository:
     @staticmethod
     def cleanup_old_logs(days=90):
-        query = "CALL cleanup_old_logs(%s)"
+        count_query = """
+            SELECT COUNT(*) as count 
+            FROM log_entries 
+            WHERE timestamp < NOW() - INTERVAL '%s days'
+        """
+    
+        delete_query = """
+            DELETE FROM log_entries
+            WHERE timestamp < NOW() - INTERVAL '%s days'
+        """
+        
         with SQLManager() as db:
-            db.cursor.execute(query, (days,))
-            db.connection.commit()
+            count_result = db.execute(count_query, (days,))
+            deleted_count = count_result[0]['count'] if count_result else 0
+            
+            if deleted_count > 0:
+                db.cursor.execute(delete_query, (days,))
+                db.connection.commit()
+            
+            return deleted_count
     
     @staticmethod
     def get_recent_logs(limit=50):
@@ -459,6 +536,96 @@ class LogRepository:
         with SQLManager() as db:
             db.execute_update(query, (user_id, action, json.dumps(details), status))
 
+    @staticmethod
+    def get_filtered_logs(action_type=None, status=None, user_filter=None, days=7):
+        conditions = ["l.timestamp > NOW() - INTERVAL '%s days'"]
+        params = [days]
+        
+        if action_type:
+            conditions.append("l.action = %s")
+            params.append(action_type)
+        
+        if status:
+            conditions.append("l.status = %s")
+            params.append(status)
+        
+        if user_filter:
+            conditions.append("(u.username ILIKE %s OR u.email ILIKE %s)")
+            params.extend([f"%{user_filter}%", f"%{user_filter}%"])
+        
+        where_clause = " AND ".join(conditions)
+        
+        query = f"""
+            SELECT 
+                l.id,
+                l.user_id,
+                l.action,
+                l.details,
+                l.status,
+                l.timestamp,
+                u.username,
+                u.email,
+                u.image_url
+            FROM log_entries l
+            LEFT JOIN users u ON l.user_id = u.id
+            WHERE {where_clause}
+            ORDER BY l.timestamp DESC
+        """
+        
+        with SQLManager() as db:
+            result = db.execute(query, tuple(params))
+            return result if result else []
+    
+    @staticmethod
+    def get_logs_statistics():
+        query = """
+            SELECT 
+                COUNT(*) as total_logs,
+                COUNT(*) FILTER (WHERE status = 'SUCCESS') as success_count,
+                COUNT(*) FILTER (WHERE status = 'ERROR') as error_count,
+                COUNT(*) FILTER (WHERE timestamp > NOW() - INTERVAL '1 day') as today_logs,
+                COUNT(*) FILTER (WHERE timestamp > NOW() - INTERVAL '7 days') as week_logs,
+                COUNT(DISTINCT user_id) as unique_users,
+                COUNT(DISTINCT action) as unique_actions
+            FROM log_entries
+            WHERE timestamp > NOW() - INTERVAL '30 days'
+        """
+        
+        with SQLManager() as db:
+            result = db.execute(query)
+            return result[0] if result else None
+    
+    @staticmethod
+    def get_unique_action_types():
+        query = """
+            SELECT DISTINCT action
+            FROM log_entries
+            WHERE timestamp > NOW() - INTERVAL '30 days'
+            ORDER BY action
+        """
+        
+        with SQLManager() as db:
+            result = db.execute(query)
+            return [row['action'] for row in result] if result else []
+    
+    @staticmethod
+    def get_action_type_stats():
+        query = """
+            SELECT 
+                action,
+                COUNT(*) as count,
+                COUNT(*) FILTER (WHERE status = 'SUCCESS') as success_count,
+                COUNT(*) FILTER (WHERE status = 'ERROR') as error_count
+            FROM log_entries
+            WHERE timestamp > NOW() - INTERVAL '7 days'
+            GROUP BY action
+            ORDER BY count DESC
+            LIMIT 10
+        """
+        
+        with SQLManager() as db:
+            result = db.execute(query)
+            return result if result else []
 
 class UserNoteRepository:
     @staticmethod
@@ -539,6 +706,22 @@ class WishlistRepository:
             return db.execute(query, (user_id,))
     
     @staticmethod
+    def get_wishlist(wishlist_id):
+        query = """
+            SELECT 
+                w.id,
+                w.user_id,
+                w.name,
+                w.description,
+                w.created_at,
+                w.updated_at
+            FROM wishlists w
+            WHERE w.id = %s::uuid
+        """
+        with SQLManager() as db:
+            return db.execute_one(query, (wishlist_id,))
+    
+    @staticmethod
     def get_wishlist_items(wishlist_id):
         query = """
             SELECT 
@@ -562,6 +745,21 @@ class WishlistRepository:
             return db.execute(query, (wishlist_id,))
     
     @staticmethod
+    def get_item(wishlist_item_id):
+        query = """
+            SELECT 
+                wi.id,
+                wi.wishlist_id,
+                wi.product_id,
+                w.user_id
+            FROM wishlist_items wi
+            JOIN wishlists w ON wi.wishlist_id = w.id
+            WHERE wi.id = %s::uuid
+        """
+        with SQLManager() as db:
+            return db.execute_one(query, (wishlist_item_id,))
+    
+    @staticmethod
     def add_to_wishlist(wishlist_id, product_id):
         query = """
             INSERT INTO wishlist_items (wishlist_id, product_id, created_at, updated_at)
@@ -571,6 +769,40 @@ class WishlistRepository:
         """
         with SQLManager() as db:
             return db.execute_one(query, (wishlist_id, product_id))
+    
+    @staticmethod
+    def remove_from_wishlist(wishlist_item_id):
+        query = "DELETE FROM wishlist_items WHERE id = %s::uuid"
+        with SQLManager() as db:
+            return db.execute_update(query, (wishlist_item_id,))
+    
+    @staticmethod
+    def delete_wishlist(wishlist_id):
+        query = "DELETE FROM wishlists WHERE id = %s::uuid"
+        with SQLManager() as db:
+            return db.execute_update(query, (wishlist_id,))
+    
+    @staticmethod
+    def update_wishlist(wishlist_id, name, description):
+        query = """
+            UPDATE wishlists
+            SET name = %s, description = %s, updated_at = NOW()
+            WHERE id = %s::uuid
+        """
+        with SQLManager() as db:
+            return db.execute_update(query, (name, description, wishlist_id))
+    
+    @staticmethod
+    def check_product_in_wishlist(wishlist_id, product_id):
+        query = """
+            SELECT EXISTS(
+                SELECT 1 FROM wishlist_items
+                WHERE wishlist_id = %s::uuid AND product_id = %s::uuid
+            ) as exists
+        """
+        with SQLManager() as db:
+            result = db.execute_one(query, (wishlist_id, product_id))
+            return result['exists'] if result else False
         
         
 class ProductReviewRepository:

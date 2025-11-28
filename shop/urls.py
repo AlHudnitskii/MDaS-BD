@@ -34,6 +34,7 @@ urlpatterns = [
     
     path('statistics/', sql_views.statistics_view, name='statistics'),
  
+    path('admin/logs/', sql_views.admin_logs_view, name='admin_logs'),
     path('admin/cleanup-logs/', sql_views.cleanup_logs_view, name='cleanup_logs'),
     
     path('notes/', sql_views.user_notes_view, name='user_notes'),
@@ -42,10 +43,12 @@ urlpatterns = [
     path('notes/delete/<str:note_id>/', sql_views.delete_note_view, name='delete_note'),
     
     path('wishlists/', sql_views.wishlists_view, name='wishlists'),
-    path('wishlists/<str:wishlist_id>/', sql_views.wishlist_detail_view, name='wishlist_detail'),
     path('wishlists/create/', sql_views.create_wishlist_view, name='create_wishlist'),
+    path('wishlists/<str:wishlist_id>/', sql_views.wishlist_detail_view, name='wishlist_detail'),
+    path('wishlists/<str:wishlist_id>/update/', sql_views.update_wishlist_view, name='update_wishlist'),
+    path('wishlists/<str:wishlist_id>/delete/', sql_views.delete_wishlist_view, name='delete_wishlist'),
     path('wishlists/<str:wishlist_id>/add/<str:product_id>/', sql_views.add_to_wishlist_view, name='add_to_wishlist'),
-    path('wishlists/remove/<str:wishlist_item_id>/', sql_views.remove_from_wishlist_view, name='remove_from_wishlist'),
+    path('wishlists/items/<str:wishlist_item_id>/remove/', sql_views.remove_from_wishlist_view, name='remove_from_wishlist'),
     
     path('product/<slug:slug>/reviews/', sql_views.product_reviews_view, name='product_reviews'),
     path('reviews/create/<str:product_id>/', sql_views.create_review_view, name='create_review'),
