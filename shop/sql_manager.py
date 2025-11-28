@@ -95,8 +95,15 @@ class UserRepository:
             return db.execute_one(query, (username,))
     
     @staticmethod
+    def get_user_by_id(user_id):
+        with SQLManager() as db:
+            query = "SELECT * FROM users WHERE id = %s"
+            return db.execute_one(query, (str(user_id),))
+
+    
+    @staticmethod
     def create_user(username, email, password, first_name, last_name):
-        query = """
+        create_user_query = """
             INSERT INTO users (
                 id, username, password, email, first_name, last_name,
                 is_active, is_superuser, date_joined
@@ -107,8 +114,28 @@ class UserRepository:
             )
             RETURNING id, username, email, first_name, last_name
         """
+
+        insert_role_query = """
+            INSERT INTO user_roles (
+                id, user_id, role_id, assigned_at, assigned_by_id
+            )
+            VALUES (
+                gen_random_uuid(), %s::uuid, '550e8400-e29b-41d4-a716-446655440102'::uuid,
+                NOW(), '550e8400-e29b-41d4-a716-446655440001'::uuid
+            )
+        """
+
         with SQLManager() as db:
-            return db.execute_one(query, (username, password, email, first_name, last_name))
+            user = db.execute_one(create_user_query, (username, password, email, first_name, last_name))
+
+            if not user:
+                return None
+
+            user_id = uuid(user["id"])
+            db.execute(insert_role_query, (user_id,))
+
+            return user
+
     
     @staticmethod
     def update_user_profile(user_id, first_name=None, last_name=None, email=None, username=None, image_url=None):
