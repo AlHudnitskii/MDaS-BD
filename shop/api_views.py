@@ -140,9 +140,7 @@ def api_create_order(request):
                     'success': False,
                     'error': 'Failed to create order'
                 }, status=500)
-            
-            db.connection.commit()
-            
+                        
             discount_applied = False
             discount_message = "No discount requested"
             
@@ -169,7 +167,6 @@ def api_create_order(request):
                         discount_message = f"Discount rejected: order total ${float(new_total):.2f} is below minimum $10"
                     else:
                         db.release_savepoint(savepoint)
-                        db.connection.commit()
                         discount_applied = True
                         discount_message = f"10% discount applied. New total: ${float(new_total):.2f}"
                 
@@ -178,6 +175,7 @@ def api_create_order(request):
                     discount_applied = False
                     discount_message = f"Discount failed: {str(e)}"
         
+        db.connection.commit()
         execution_time = time.time() - start_time
         
         return JsonResponse({
@@ -200,29 +198,32 @@ def api_create_order(request):
             'success': False,
             'error': str(e)
         }, status=500)
-
-
-@require_http_methods(["GET"])
-def api_user_orders(request, user_id):
+        
+        
+@csrf_exempt        
+@require_http_methods(["POST"])
+def api_cleanup_logs(request):
     start_time = time.time()
     
     try:
-        from .sql_manager import OrderRepository
+        import json
+        data = json.loads(request.body or "{}")
+        days_to_keep = int(data.get("days_to_keep", 90))
         
-        orders = OrderRepository.get_user_orders(user_id)
+        with SQLManager() as db:
+            db.cursor.execute("CALL cleanup_old_logs(%s)", (days_to_keep,))
+            db.connection.commit()
         
-        execution_time = time.time() - start_time
+        execution_time = round((time.time() - start_time) * 1000, 2)
         
         return JsonResponse({
-            'success': True,
-            'user_id': user_id,
-            'orders_count': len(orders),
-            'orders': orders,
-            'execution_time_ms': round(execution_time * 1000, 2)
+            "success": True,
+            "message": f"Logs older than {days_to_keep} days deleted.",
+            "execution_time_ms": execution_time
         })
     
     except Exception as e:
         return JsonResponse({
-            'success': False,
-            'error': str(e)
+            "success": False,
+            "error": str(e)
         }, status=500)

@@ -124,6 +124,43 @@ BEGIN
    END LOOP;
 END;
 $$;
+DROP PROCEDURE get_top_products;
+
+
+CREATE OR REPLACE FUNCTION get_top_products(
+    p_limit INTEGER DEFAULT 10
+)
+RETURNS TABLE (
+    id UUID,
+    name TEXT,
+    price NUMERIC,
+    discount NUMERIC,
+    order_count INTEGER,
+    total_sold INTEGER,
+    revenue NUMERIC
+)
+LANGUAGE plpgsql AS $$
+BEGIN
+    RETURN QUERY
+        SELECT 
+            p.id,
+            p.name,
+            p.price,
+            p.discount,
+            COUNT(DISTINCT oi.order_id) AS order_count,
+            COALESCE(SUM(oi.quantity), 0) AS total_sold,
+            COALESCE(SUM(oi.price * oi.quantity), 0) AS revenue
+        FROM products p
+        LEFT JOIN order_items oi ON p.id = oi.product_id
+        LEFT JOIN orders o ON oi.order_id = o.id AND o.paid = TRUE
+        WHERE p.available = TRUE
+        GROUP BY p.id, p.name, p.price, p.discount
+        ORDER BY total_sold DESC NULLS LAST, revenue DESC NULLS LAST
+        LIMIT p_limit;
+END;
+$$;
+
+
 
 -- 4 - Обработка заказа как оплаченного
 CREATE OR REPLACE PROCEDURE process_payment(

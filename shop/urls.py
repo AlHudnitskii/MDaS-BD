@@ -11,6 +11,8 @@ urlpatterns = [
     path('api/products/', api_views.api_products_list, name='api_products'),
     path('api/statistics/', api_views.api_statistics, name='api_statistics'),
     path('api/orders/create/', api_views.api_create_order, name='api_create_order'),
+    path('api/logs/cleanup/', api_views.api_cleanup_logs, name='api_cleanup_logs'),
+    
     
    
     path('', sql_views.index_view, name='index'),

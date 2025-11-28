@@ -2,9 +2,11 @@ import uuid
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from .sql_pool import get_connection_pool
+
 #Пул connections + нагрузочное тестирование сдедать
 #API пару эндпоинтов + Postman
 #В ОДИН из эндпоинтов вызыв хран процедуру + nested transactions 
+
 class SQLManager:
     def __init__(self):
         self.connection = None
@@ -27,7 +29,6 @@ class SQLManager:
         
         if self.connection:
             self.pool.putconn(self.connection)
-        
         return False
     
     def execute(self, query, params=None):
@@ -288,6 +289,7 @@ class ProductRepository:
         with SQLManager() as db:
             return db.execute(query, (limit,))
 
+
     @staticmethod
     def get_products_by_ids(product_ids):
         if not product_ids:
@@ -532,6 +534,15 @@ class LogRepository:
             
             return deleted_count
     
+    def cleanup_old_logs_(days_to_keep=90):
+        with SQLManager() as db:
+            db.call_procedure("cleanup_old_logs", [days_to_keep])
+            
+            return {
+                "success": True,
+                "message": f"cleanup_old_logs procedure executed for {days_to_keep} days"
+            }
+        
     @staticmethod
     def get_recent_logs(limit=50):
         query = """
