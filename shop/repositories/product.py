@@ -1,4 +1,6 @@
 import uuid
+from django.conf import settings
+
 from ..sql_manager import SQLManager
 
 
@@ -23,23 +25,35 @@ class ProductRepository:
     }
 
     @classmethod
-    def get_all(cls, category_slug: str | None = None,
-                sort_by: str = 'name') -> list[dict]:
+    def get_all(cls, category_slug: str | None = None, sort_by: str = 'name') -> list[dict]:
+        return CacheService.get_or_set(
+            key = CacheKeys.products_list(category_slug, sort_by),
+            fetch_fn = lambda: cls._fetch_all(category_slug, sort_by),
+            ttl = settings.CACHE_TTL['product_list'],
+        )
+
+    @classmethod
+    def _fetch_all(cls, category_slug, sort_by) -> list[dict]:
         query  = cls._BASE_SELECT + " WHERE p.available = TRUE"
         params = []
-
         if category_slug:
             query += " AND c.slug = %s"
             params.append(category_slug)
-
         order = cls._SORT_MAP.get(sort_by, 'p.name ASC')
         query += f" ORDER BY {order}"
-
         with SQLManager() as db:
             return db.execute(query, tuple(params) if params else None)
 
     @classmethod
     def get_by_slug(cls, slug: str) -> dict | None:
+        return CacheService.get_or_set(
+            key      = CacheKeys.products_detail(slug),
+            fetch_fn = lambda: cls._fetch_by_slug(slug),
+            ttl      = settings.CACHE_TTL['product_detail'],
+        )
+
+    @classmethod
+    def _fetch_by_slug(cls, slug) -> dict | None:
         query = cls._BASE_SELECT + " WHERE p.slug = %s AND p.available = TRUE"
         with SQLManager() as db:
             return db.execute_one(query, (slug,))
@@ -52,17 +66,14 @@ class ProductRepository:
                 uids.append(uuid.UUID(str(pid)))
             except ValueError:
                 continue
-
         if not uids:
             return []
-
         placeholders = ','.join(['%s'] * len(uids))
         query = f"""
-            SELECT
-                p.id, p.name, p.slug, p.description,
-                p.price, p.discount,
-                ROUND(p.price * (1 - p.discount), 2) AS final_price,
-                c.name AS category_name, p.image, p.available
+            SELECT p.id, p.name, p.slug, p.description,
+                   p.price, p.discount,
+                   ROUND(p.price * (1 - p.discount), 2) AS final_price,
+                   c.name AS category_name, p.image, p.available
             FROM products AS p
             INNER JOIN categories AS c ON p.category_id = c.id
             WHERE p.id IN ({placeholders})
@@ -72,37 +83,57 @@ class ProductRepository:
 
     @staticmethod
     def search(query_text: str) -> list[dict]:
+        return CacheService.get_or_set(
+            key = CacheKeys.products_search(query_text),
+            fetch_fn = lambda: ProductRepository._fetch_search(query_text),
+            ttl = settings.CACHE_TTL['product_list'],
+        )
+
+    @staticmethod
+    def _fetch_search(query_text: str) -> list[dict]:
         pattern = f"%{query_text}%"
-        query   = """
-            SELECT
-                p.id, p.name, c.name AS category_name,
-                p.price, p.discount,
-                ROUND(p.price * (1 - p.discount), 2) AS final_price,
-                p.description, p.image
-            FROM products AS p
-            INNER JOIN categories AS c ON p.category_id = c.id
-            WHERE (p.name ILIKE %s OR p.description ILIKE %s)
-              AND p.available = TRUE
-            ORDER BY p.name ASC
-        """
         with SQLManager() as db:
-            return db.execute(query, (pattern, pattern))
+            return db.execute("""
+                SELECT p.id, p.name, c.name AS category_name,
+                       p.price, p.discount,
+                       ROUND(p.price * (1 - p.discount), 2) AS final_price,
+                       p.description, p.image
+                FROM products AS p
+                INNER JOIN categories AS c ON p.category_id = c.id
+                WHERE (p.name ILIKE %s OR p.description ILIKE %s)
+                  AND p.available = TRUE
+                ORDER BY p.name ASC
+            """, (pattern, pattern))
 
     @staticmethod
     def get_top(limit: int = 10) -> list[dict]:
-        query = """
-            SELECT
-                p.id, p.name, p.price, p.discount, p.image,
-                COUNT(DISTINCT oi.order_id)         AS order_count,
-                COALESCE(SUM(oi.quantity), 0)       AS total_sold,
-                COALESCE(SUM(oi.price * oi.quantity), 0) AS revenue
-            FROM products p
-            LEFT JOIN order_items oi ON p.id = oi.product_id
-            LEFT JOIN orders o ON oi.order_id = o.id AND o.paid = TRUE
-            WHERE p.available = TRUE
-            GROUP BY p.id, p.name, p.price, p.discount, p.image
-            ORDER BY total_sold DESC, revenue DESC
-            LIMIT %s
-        """
+        return CacheService.get_or_set(
+            key = CacheKeys.products_top(limit),
+            fetch_fn = lambda: ProductRepository._fetch_top(limit),
+            ttl = settings.CACHE_TTL['statistics'],
+        )
+
+    @staticmethod
+    def _fetch_top(limit: int) -> list[dict]:
         with SQLManager() as db:
-            return db.execute(query, (limit,))
+            return db.execute("""
+                SELECT p.id, p.name, p.price, p.discount, p.image,
+                       COUNT(DISTINCT oi.order_id) AS order_count,
+                       COALESCE(SUM(oi.quantity), 0) AS total_sold,
+                       COALESCE(SUM(oi.price * oi.quantity), 0) AS revenue
+                FROM products p
+                LEFT JOIN order_items oi ON p.id = oi.product_id
+                LEFT JOIN orders o ON oi.order_id = o.id AND o.paid = TRUE
+                WHERE p.available = TRUE
+                GROUP BY p.id, p.name, p.price, p.discount, p.image
+                ORDER BY total_sold DESC, revenue DESC
+                LIMIT %s
+            """, (limit,))
+
+    @staticmethod
+    def invalidate_all():
+        CacheService.invalidate_prefix(CacheKeys.PREFIX_PRODUCTS)
+
+    @staticmethod
+    def invalidate_detail(slug: str):
+        CacheService.delete(CacheKeys.products_detail(slug))

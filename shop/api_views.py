@@ -89,3 +89,34 @@ def api_token_verify(request):
             'expires': payload.get('exp'),
         })
     return JsonResponse({'valid': False, 'error': 'Invalid or expired token'}, status=401)
+
+
+@require_http_methods(["GET"])
+def api_cache_stats(request):
+    from .cache_service import CacheService
+    stats = CacheService.get_stats()
+    return JsonResponse({'success': True, 'cache': stats})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_cache_invalidate(request):
+    from .cache_service import CacheService, CacheKeys
+    try:
+        data = json.loads(request.body or '{}')
+        prefix = data.get('prefix', '')
+
+        if prefix == 'all':
+            deleted = CacheService.invalidate_prefix(CacheKeys.PREFIX_ALL)
+        elif prefix:
+            deleted = CacheService.invalidate_prefix(prefix)
+        else:
+            return JsonResponse({'success': False, 'error': 'prefix required'}, status=400)
+
+        return JsonResponse({
+            'success': True,
+            'deleted_keys': deleted,
+            'prefix': prefix,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

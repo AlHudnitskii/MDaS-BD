@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from ..repositories.user import UserRepository
 from ..repositories.log  import LogRepository
+from ..session_service   import SessionService
 from ..jwt_service import (
     is_user_blacklisted, record_failed_login, clear_failed_attempts,
     create_access_token, create_refresh_token,
@@ -28,37 +29,30 @@ class AuthService:
         if is_user_blacklisted(username):
             ttl = get_blacklist_ttl(username)
             return LoginResult(
-                success=False,
-                is_blocked=True,
-                block_ttl=ttl,
-                error=(
-                    f'Account blocked. '
-                    f'Try again in {ttl // 60} min {ttl % 60} sec.'
-                ),
+                success=False, is_blocked=True, block_ttl=ttl,
+                error=f'Account blocked. Try again in {ttl // 60}m {ttl % 60}s.',
             )
 
         user = UserRepository.get_user_by_username(username)
 
         if user and UserRepository.check_password(username, password):
             clear_failed_attempts(username)
-
             user_id = str(user['id'])
             access_token = create_access_token(user_id, username)
             refresh_token = create_refresh_token(user_id, username)
 
             UserRepository.update_last_login(user_id)
+
+            SessionService.create(user_id, username, extra={'ip': ip})
+
             LogRepository.log_action(
                 user_id, 'USER_LOGIN',
-                {'ip': ip, 'username': username},
-                'SUCCESS'
+                {'ip': ip, 'username': username}, 'SUCCESS'
             )
 
             return LoginResult(
-                success=True,
-                user_id=user_id,
-                username=username,
-                access_token=access_token,
-                refresh_token=refresh_token,
+                success=True, user_id=user_id, username=username,
+                access_token=access_token, refresh_token=refresh_token,
             )
 
         count = record_failed_login(username)
@@ -67,8 +61,7 @@ class AuthService:
         LogRepository.log_action(
             str(user['id']) if user else None,
             'LOGIN_FAILED',
-            {'ip': ip, 'username': username, 'attempt': count},
-            'FAILED'
+            {'ip': ip, 'username': username, 'attempt': count}, 'FAILED'
         )
 
         return LoginResult(
@@ -78,18 +71,20 @@ class AuthService:
         )
 
     @staticmethod
-    def logout(user_id: str, username: str, access_token: str | None) -> None:
+    def logout(user_id: str, username: str,
+               access_token: str | None) -> None:
         if access_token:
             revoke_token(access_token)
 
+        SessionService.delete(user_id)
+
         LogRepository.log_action(
-            user_id, 'USER_LOGOUT',
-            {'username': username},
-            'SUCCESS'
+            user_id, 'USER_LOGOUT', {'username': username}, 'SUCCESS'
         )
 
     @staticmethod
-    def register(username: str, email: str, password: str, first_name: str, last_name: str) -> dict:
+    def register(username: str, email: str, password: str,
+                 first_name: str, last_name: str) -> dict:
         if len(password) < 6:
             return {'success': False, 'error': 'Password must be at least 6 characters.'}
 
@@ -97,14 +92,11 @@ class AuthService:
             return {'success': False, 'error': 'Username or email already exists.'}
 
         user = UserRepository.create_user(username, email, password, first_name, last_name)
-
         if not user:
-            return {'success': False, 'error': 'Registration failed. Please try again.'}
+            return {'success': False, 'error': 'Registration failed.'}
 
         LogRepository.log_action(
             str(user['id']), 'USER_REGISTER',
-            {'username': username, 'email': email},
-            'SUCCESS'
+            {'username': username, 'email': email}, 'SUCCESS'
         )
-
         return {'success': True, 'user': user}

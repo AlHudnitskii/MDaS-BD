@@ -10,6 +10,8 @@ urlpatterns = [
     path('api/auth/login/', api_views.api_login, name='api_login'),
     path('api/auth/logout/', api_views.api_logout, name='api_logout'),
     path('api/auth/verify/', api_views.api_token_verify, name='api_token_verify'),
+    path('api/cache/stats/', api_views.api_cache_stats, name='api_cache_stats'),
+    path('api/cache/invalidate/', api_views.api_cache_invalidate, name='api_cache_invalidate'),
 
     path('', views.index_view, name='index'),
 
