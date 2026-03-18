@@ -27,4 +27,4 @@ def close_connection_pool():
    global _connection_pool
    if _connection_pool:
       _connection_pool.closeall()
-      _connection_pool = None         
+      _connection_pool = None

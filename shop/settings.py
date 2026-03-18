@@ -20,8 +20,9 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
+
     'shop.sql_middleware.SessionAuthMiddleware',
+    #'shop.jwt_middleware.JWTAuthMiddleware',
     'shop.sql_middleware.CartMiddleware',
 ]
 
@@ -37,7 +38,6 @@ TEMPLATES = [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.messages.context_processors.messages',
-                
                 'shop.sql_context_processors.auth_context',
                 'shop.sql_context_processors.cart_context',
             ],
@@ -59,21 +59,6 @@ DATABASES = {
 }
 
 
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
-
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Europe/Minsk'
 USE_I18N = True
@@ -89,7 +74,36 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_AGE = 86400  # 1 день
+SESSION_COOKIE_AGE = 86400
 SESSION_SAVE_EVERY_REQUEST = True
 
 CART_SESSION_ID = 'cart'
+
+REDIS_HOST = 'localhost'
+REDIS_PORT = 6379
+REDIS_PASSWORD = 'redispassword'
+REDIS_DB_CACHE = 0
+REDIS_DB_SESSIONS = 1
+REDIS_DB_PUBSUB = 2
+
+JWT_SECRET_KEY = 'blablablablabla-string'
+JWT_ALGORITHM = 'HS256'
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 60
+JWT_REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+LOGIN_MAX_ATTEMPTS = 3
+LOGIN_BLOCK_DURATION = 600
+
+MONGODB_URI = 'mongodb://mongoadmin:mongopassword@localhost:27017/'
+MONGODB_DATABASE = 'shop_logs'
+
+CACHE_TTL = {
+    'users_list': 300,
+    'user_roles': 300,
+    'product_list': 600,
+    'product_detail': 600,
+    'categories': 3600,
+    'statistics': 1800,
+    'analytics': 3600,
+    'session': 86400,
+}

@@ -8,7 +8,7 @@ def auth_context(request):
 def cart_context(request):
     cart = request.session.get('cart', {})
     cart_quantity = sum(item.get('quantity', 0) for item in cart.values())
-    
+
     return {
         'cart': cart,
         'cart_quantity': cart_quantity,
