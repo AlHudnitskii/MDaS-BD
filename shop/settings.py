@@ -22,7 +22,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
     'shop.sql_middleware.SessionAuthMiddleware',
-    #'shop.jwt_middleware.JWTAuthMiddleware',
+    'shop.jwt_middleware.JWTAuthMiddleware',
     'shop.sql_middleware.CartMiddleware',
 ]
 

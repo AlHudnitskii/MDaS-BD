@@ -1,16 +1,18 @@
 {% extends 'base.html' %}
 
-{% block title %}{% if category %}{{ category.name }}{% else %}All Products{% endif %}{% endblock %}
+{% block title %}
+    {% if category %}{{ category.name }}{% else %}All Products{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h1>{% if category %}{{ category.name }}{% else %}All Products{% endif %}</h1>
-        
+        <h1>
+            {% if category %}{{ category.name }}{% else %}All Products{% endif %}
+        </h1>
+
         <form method="get" style="display: flex; gap: 0.5rem;">
-            <input type="text" name="q" value="{{ query|default:'' }}" 
-                   class="form-control" placeholder="Search products..." 
-                   style="max-width: 300px;">
+            <input type="text" name="q" value="{{ query|default:'' }}" class="form-control" placeholder="Search products..." style="max-width: 300px;">
             <button type="submit" class="btn btn-primary">Search</button>
         </form>
     </div>
@@ -22,8 +24,7 @@
                 All
             </a>
             {% for cat in categories %}
-            <a href="/shop/category/{{ cat.slug }}/" 
-               class="btn {% if category and category.slug == cat.slug %}btn-primary{% else %}btn-secondary{% endif %}">
+            <a href="/shop/category/{{ cat.slug }}/" class="btn {% if category and category.slug == cat.slug %}btn-primary{% else %}btn-secondary{% endif %}">
                 {{ cat.name }}
             </a>
             {% endfor %}
@@ -32,12 +33,11 @@
 
     <div style="margin-bottom: 2rem;">
         <label for="sort-select"><strong>Sort by:</strong></label>
-        <select id="sort-select" onchange="window.location.href='?sort=' + this.value" 
-                style="margin-left: 1rem; padding: 0.5rem; border-radius: 8px; border: 2px solid #e0e0e0;">
-            <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name</option>
-            <option value="price" {% if sort_by == 'price' %}selected{% endif %}>Price: Low to High</option>
-            <option value="-price" {% if sort_by == '-price' %}selected{% endif %}>Price: High to Low</option>
-            <option value="-created" {% if sort_by == '-created' %}selected{% endif %}>Newest</option>
+        <select id="sort-select" onchange="window.location.href = this.value ? '?sort=' + this.value : window.location.pathname" style="margin-left: 1rem; padding: 0.5rem; border-radius: 8px; border: 2px solid #e0e0e0;">
+            <option value="name" {% if sort_by == "name" %}selected{% endif %}>Name</option>
+            <option value="price" {% if sort_by == "price" %}selected{% endif %}>Price: Low to High</option>
+            <option value="-price" {% if sort_by == "-price" %}selected{% endif %}>Price: High to Low</option>
+            <option value="-created" {% if sort_by == "-created" %}selected{% endif %}>Newest</option>
         </select>
     </div>
 
@@ -50,29 +50,28 @@
                 {% else %}
                 <img src="/static/img/noimage.jpg" alt="{{ product.name }}" class="product-image">
                 {% endif %}
-                
+
                 <div class="product-body">
                     <h3 class="product-title">{{ product.name }}</h3>
                     <p style="color: #666; font-size: 0.9rem; margin-bottom: 0.5rem;">
                         {{ product.category_name }}
                     </p>
-                    
+
                     <div class="product-price">
                         {% if product.discount > 0 %}
-                            <span class="price-discount">${{ product.price }}</span>
-                            ${{ product.final_price }}
-                            {% widthratio product.discount|default:0 1 100 %}%
+                        <span class="price-discount">${{ product.price }}</span>
+                        ${{ product.final_price }} {% widthratio product.discount|default:0 1 100 %}%
                         {% else %}
-                            ${{ product.price }}
+                        ${{ product.price }}
                         {% endif %}
                     </div>
-                    
+
                     <form method="post" action="/cart/add/{{ product.id }}/">
                         {% csrf_token %}
                         <input type="hidden" name="slug" value="{{ product.slug }}">
                         <input type="hidden" name="quantity" value="1">
                         <button type="submit" class="btn btn-primary" style="width: 100%;">
-                           Add to Cart
+                            Add to Cart
                         </button>
                     </form>
                 </div>

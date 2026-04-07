@@ -66,25 +66,3 @@ class SQLManager:
 
     def release_savepoint(self, savepoint_name):
         self.cursor.execute(f"RELEASE SAVEPOINT {savepoint_name}")
-
-
-class CategoryRepository:
-    @staticmethod
-    def get_all_categories():
-        query = """
-            SELECT id, name, slug
-            FROM categories
-            ORDER BY name
-        """
-        with SQLManager() as db:
-            return db.execute(query)
-
-    @staticmethod
-    def get_category_by_slug(slug):
-        query = """
-            SELECT id, name, slug
-            FROM categories
-            WHERE slug = %s
-        """
-        with SQLManager() as db:
-            return db.execute_one(query, (slug,))
