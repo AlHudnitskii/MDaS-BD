@@ -1,6 +1,7 @@
 import uuid
 from django.conf import settings
 
+from ..cache_service import CacheService, CacheKeys
 from ..sql_manager import SQLManager
 
 

@@ -91,10 +91,6 @@ def verify_token(token: str) -> dict | None:
 
 
 def revoke_token(token: str) -> bool:
-    """
-    Добавляет JTI токена в Redis с TTL = оставшееся время жизни токена.
-    Когда токен естественно истечёт — Redis-ключ тоже удалится.
-    """
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY,
                              algorithms=[settings.JWT_ALGORITHM],
@@ -103,8 +99,8 @@ def revoke_token(token: str) -> bool:
         exp = payload.get('exp')
         if not jti:
             return False
-        now          = datetime.datetime.utcnow().timestamp()
-        remaining    = max(0, int(exp - now)) if exp else 3600
+        now = datetime.datetime.utcnow().timestamp()
+        remaining = max(0, int(exp - now)) if exp else 3600
         if remaining > 0:
             get_redis_cache().setex(_key_jwt_revoked(jti), remaining, "revoked")
         return True
@@ -113,11 +109,6 @@ def revoke_token(token: str) -> bool:
 
 
 def get_token_from_request(request) -> str | None:
-    """
-    Ищет токен в:
-      1. Заголовке Authorization: Bearer <token>
-      2. Cookie access_token
-    """
     auth = request.META.get('HTTP_AUTHORIZATION', '')
     if auth.startswith('Bearer '):
         return auth[7:]
