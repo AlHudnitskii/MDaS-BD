@@ -1,5 +1,5 @@
 import json
-from ..sql_manager import SQLManager
+from ..core.postgres import SQLManager
 
 
 class LogRepository:
@@ -20,8 +20,8 @@ class LogRepository:
     @staticmethod
     def get_filtered(action_type=None, status=None,
                      user_filter=None, days: int = 7) -> list[dict]:
-        conditions = ["l.timestamp > NOW() - INTERVAL '%s days'"]
-        params     = [days]
+        conditions = ["l.timestamp > NOW() - make_interval(days => %s)"]
+        params = [int(days)]
 
         if action_type:
             conditions.append("l.action = %s")
@@ -48,20 +48,19 @@ class LogRepository:
 
     @staticmethod
     def get_statistics() -> dict | None:
-        query = """
-            SELECT
-                COUNT(*) AS total_logs,
-                COUNT(*) FILTER (WHERE status = 'SUCCESS') AS success_count,
-                COUNT(*) FILTER (WHERE status = 'ERROR') AS error_count,
-                COUNT(*) FILTER (WHERE timestamp > NOW() - INTERVAL '1 day')  AS today_logs,
-                COUNT(*) FILTER (WHERE timestamp > NOW() - INTERVAL '7 days') AS week_logs,
-                COUNT(DISTINCT user_id) AS unique_users,
-                COUNT(DISTINCT action) AS unique_actions
-            FROM log_entries
-            WHERE timestamp > NOW() - INTERVAL '30 days'
-        """
         with SQLManager() as db:
-            result = db.execute(query)
+            result = db.execute("""
+                SELECT
+                    COUNT(*) AS total_logs,
+                    COUNT(*) FILTER (WHERE status = 'SUCCESS') AS success_count,
+                    COUNT(*) FILTER (WHERE status = 'ERROR') AS error_count,
+                    COUNT(*) FILTER (WHERE timestamp > NOW() - INTERVAL '1 day') AS today_logs,
+                    COUNT(*) FILTER (WHERE timestamp > NOW() - INTERVAL '7 days') AS week_logs,
+                    COUNT(DISTINCT user_id) AS unique_users,
+                    COUNT(DISTINCT action) AS unique_actions
+                FROM log_entries
+                WHERE timestamp > NOW() - INTERVAL '30 days'
+            """)
             return result[0] if result else None
 
     @staticmethod

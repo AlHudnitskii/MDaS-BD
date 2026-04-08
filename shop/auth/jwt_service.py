@@ -4,7 +4,7 @@ import jwt
 
 from django.conf import settings
 
-from .redis_client import get_redis_cache
+from ..core.redis import get_redis_cache
 
 
 def _key_failed(username: str) -> str:

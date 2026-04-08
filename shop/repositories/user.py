@@ -1,6 +1,7 @@
 from django.conf import settings
-from ..sql_manager import SQLManager
-from ..cache_service import CacheService, CacheKeys
+
+from ..core.postgres import SQLManager
+from ..cache import CacheService, CacheKeys
 
 
 class UserRepository:
@@ -111,6 +112,14 @@ class UserRepository:
                 tuple(fields.values()) + (user_id,)
             )
         UserRepository.invalidate()
+
+
+        try:
+            from ..core.pubsub import Publisher
+            Publisher.user_updated(user_id, kwargs.get('username', ''))
+            Publisher.cache_invalidated(CacheKeys.PREFIX_USERS)
+        except Exception:
+            pass
 
     @staticmethod
     def invalidate():

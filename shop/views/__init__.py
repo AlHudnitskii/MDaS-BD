@@ -14,4 +14,5 @@ from .reviews import (
     update_review_view, delete_review_view,
 )
 from .admin import admin_logs_view, cleanup_logs_view, statistics_view
+from .analytics import analytics_view, export_report
 from .misc import index_view

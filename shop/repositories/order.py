@@ -1,5 +1,5 @@
 import json
-from ..sql_manager import SQLManager
+from ..core.postgres import SQLManager
 
 
 class OrderRepository:
@@ -61,3 +61,9 @@ class OrderRepository:
             db.connection.commit()
 
         StatisticsRepository.invalidate()
+
+        try:
+            from ..core.pubsub import Publisher
+            Publisher.order_paid(order_id, '')
+        except Exception:
+            pass
