@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 
 from ..repositories.note import UserNoteRepository
-from ..repositories.log import LogRepository
+from ..repositories.mongo_log import MongoLogRepository
 
 
 def _require_auth(request):
@@ -14,9 +14,7 @@ def user_notes_view(request):
     user_id = _require_auth(request)
     if not user_id:
         return redirect('login')
-
-    notes = UserNoteRepository.get_by_user(user_id)
-    return render(request, 'users/notes.html', {'notes': notes})
+    return render(request, 'users/notes.html', {'notes': UserNoteRepository.get_by_user(user_id)})
 
 
 @require_http_methods(["POST"])
@@ -33,7 +31,7 @@ def create_note_view(request):
         return redirect('user_notes')
 
     UserNoteRepository.create(user_id, title, content)
-    LogRepository.log_action(user_id, 'NOTE_CREATED', {'title': title}, 'SUCCESS')
+    MongoLogRepository.log_action(user_id, 'NOTE_CREATED', {'title': title}, 'SUCCESS')
     messages.success(request, 'Note created.')
     return redirect('user_notes')
 
@@ -49,11 +47,8 @@ def update_note_view(request, note_id):
         messages.error(request, 'Access denied.')
         return redirect('user_notes')
 
-    title = request.POST.get('title', '').strip()
-    content = request.POST.get('content', '').strip()
-
-    UserNoteRepository.update(note_id, title, content)
-    LogRepository.log_action(user_id, 'NOTE_UPDATED', {'note_id': note_id}, 'SUCCESS')
+    UserNoteRepository.update(note_id, request.POST.get('title', '').strip(), request.POST.get('content', '').strip())
+    MongoLogRepository.log_action(user_id, 'NOTE_UPDATED', {'note_id': note_id}, 'SUCCESS')
     messages.success(request, 'Note updated.')
     return redirect('user_notes')
 
@@ -70,6 +65,6 @@ def delete_note_view(request, note_id):
         return redirect('user_notes')
 
     UserNoteRepository.delete(note_id)
-    LogRepository.log_action(user_id, 'NOTE_DELETED', {'note_id': note_id}, 'SUCCESS')
+    MongoLogRepository.log_action(user_id, 'NOTE_DELETED', {'note_id': note_id}, 'SUCCESS')
     messages.success(request, 'Note deleted.')
     return redirect('user_notes')

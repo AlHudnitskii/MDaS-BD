@@ -3,7 +3,7 @@ import datetime
 import logging
 
 from django.conf import settings
-from .redis_client import get_redis_sessions
+from ..core.redis import get_redis_sessions
 
 logger = logging.getLogger(__name__)
 

@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
 from ..repositories.user import UserRepository
-from ..repositories.log  import LogRepository
-from ..session_service   import SessionService
-from ..jwt_service import (
+from ..repositories.mongo_log import MongoLogRepository
+from ..auth.session_service import SessionService
+from ..auth.jwt_service import (
     is_user_blacklisted, record_failed_login, clear_failed_attempts,
     create_access_token, create_refresh_token,
     revoke_token, get_blacklist_ttl,
@@ -42,12 +42,10 @@ class AuthService:
             refresh_token = create_refresh_token(user_id, username)
 
             UserRepository.update_last_login(user_id)
-
             SessionService.create(user_id, username, extra={'ip': ip})
-
-            LogRepository.log_action(
+            MongoLogRepository.log_action(
                 user_id, 'USER_LOGIN',
-                {'ip': ip, 'username': username}, 'SUCCESS'
+                {'ip': ip, 'username': username}, 'SUCCESS',
             )
 
             return LoginResult(
@@ -58,10 +56,11 @@ class AuthService:
         count = record_failed_login(username)
         attempts_left = max(0, 3 - count)
 
-        LogRepository.log_action(
+        MongoLogRepository.log_action(
             str(user['id']) if user else None,
             'LOGIN_FAILED',
-            {'ip': ip, 'username': username, 'attempt': count}, 'FAILED'
+            {'ip': ip, 'username': username, 'attempt': count},
+            'FAILED',
         )
 
         return LoginResult(
@@ -71,23 +70,26 @@ class AuthService:
         )
 
     @staticmethod
-    def logout(user_id: str, username: str,
-               access_token: str | None) -> None:
+    def logout(user_id: str, username: str, access_token: str | None) -> None:
         if access_token:
             revoke_token(access_token)
-
         SessionService.delete(user_id)
-
-        LogRepository.log_action(
-            user_id, 'USER_LOGOUT', {'username': username}, 'SUCCESS'
+        MongoLogRepository.log_action(
+            user_id, 'USER_LOGOUT', {'username': username}, 'SUCCESS',
         )
+
+        try:
+            from ..core.pubsub import Publisher
+            Publisher.user_logged_out(user_id)
+        except Exception:
+            pass
+
 
     @staticmethod
     def register(username: str, email: str, password: str,
                  first_name: str, last_name: str) -> dict:
         if len(password) < 6:
             return {'success': False, 'error': 'Password must be at least 6 characters.'}
-
         if UserRepository.username_or_email_exists(username, email):
             return {'success': False, 'error': 'Username or email already exists.'}
 
@@ -95,8 +97,8 @@ class AuthService:
         if not user:
             return {'success': False, 'error': 'Registration failed.'}
 
-        LogRepository.log_action(
+        MongoLogRepository.log_action(
             str(user['id']), 'USER_REGISTER',
-            {'username': username, 'email': email}, 'SUCCESS'
+            {'username': username, 'email': email}, 'SUCCESS',
         )
         return {'success': True, 'user': user}

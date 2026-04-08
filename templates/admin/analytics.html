@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytics — MongoDB{% endblock %}
+
+{% block content %}
+<div style="padding: 20px;">
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2>MongoDB Analytics</h2>
+        <div style="display: flex; gap: 8px;">
+            <a href="{% url 'admin_logs' %}" class="btn btn-secondary btn-sm">Logs</a>
+            <a href="{% url 'profile' %}" class="btn btn-secondary btn-sm">← Profile</a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card" style="margin-bottom: 16px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <strong>Period:</strong>
+            <a href="?period=day" class="btn btn-sm {% if period == 'day' %}btn-primary{% else %}btn-secondary{% endif %}">Day</a>
+            <a href="?period=week" class="btn btn-sm {% if period == 'week' %}btn-primary{% else %}btn-secondary{% endif %}">Week</a>
+            <a href="?period=month" class="btn btn-sm {% if period == 'month' %}btn-primary{% else %}btn-secondary{% endif %}">Month</a>
+        </div>
+    </div>
+
+    {% if anomalies %}
+    <div class="card" style="margin-bottom: 16px; border-left: 4px solid #e74c3c;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="color: #e74c3c; margin: 0;">Anomalies detected: {{ anomalies|length }}</h4>
+            <div style="display: flex; gap: 8px;">
+                <a href="{% url 'export_report' 'anomalies' %}?format=json" class="btn btn-sm btn-secondary">JSON</a>
+                <a href="{% url 'export_report' 'anomalies' %}?format=csv"  class="btn btn-sm btn-secondary">CSV</a>
+            </div>
+        </div>
+        {% for a in anomalies %}
+        <div style="padding: 10px 12px; margin-bottom: 8px; border-radius: 6px;
+                    background: {% if a.severity == 'HIGH' %}#fdf0f0{% else %}#fffbf0{% endif %};">
+            <div style="display: flex; justify-content: space-between;">
+                <div>
+                    <span style="font-weight: 500; color: {% if a.severity == 'HIGH' %}#c0392b{% else %}#d35400{% endif %};">
+                        {{ a.type }}
+                    </span>
+                    <span style="margin-left: 8px; font-size: 12px; color: #666;">{{ a.description }}</span>
+                </div>
+                <span style="font-size: 12px; background: {% if a.severity == 'HIGH' %}#e74c3c{% else %}#e67e22{% endif %};
+                             color: white; padding: 2px 8px; border-radius: 4px;">
+                    {{ a.severity }}
+                </span>
+            </div>
+            {% if a.user_id %}
+            <div style="font-size: 11px; color: #999; margin-top: 4px;">User: {{ a.user_id }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card" style="margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="margin: 0;">Activity by {{ period }}</h4>
+            <div style="display: flex; gap: 8px;">
+                <a href="{% url 'export_report' 'activity' %}?format=json&period={{ period }}" class="btn btn-sm btn-secondary">JSON</a>
+                <a href="{% url 'export_report' 'activity' %}?format=csv&period={{ period }}" class="btn btn-sm btn-secondary">CSV</a>
+            </div>
+        </div>
+        {% if activity %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                    <tr style="background: #f8f9fa;">
+                        <th style="padding: 8px 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Period</th>
+                        <th style="padding: 8px 12px; text-align: right; border-bottom: 2px solid #dee2e6;">Total</th>
+                        <th style="padding: 8px 12px; text-align: right; border-bottom: 2px solid #dee2e6;">Success</th>
+                        <th style="padding: 8px 12px; text-align: right; border-bottom: 2px solid #dee2e6;">Failed</th>
+                        <th style="padding: 8px 12px; text-align: right; border-bottom: 2px solid #dee2e6;">Unique users</th>
+                        <th style="padding: 8px 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Chart</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in activity %}
+                    <tr style="border-bottom: 1px solid #f0f0f0;">
+                        <td style="padding: 8px 12px; font-weight: 500;">{{ row.label }}</td>
+                        <td style="padding: 8px 12px; text-align: right;">{{ row.total }}</td>
+                        <td style="padding: 8px 12px; text-align: right; color: #27ae60;">{{ row.success }}</td>
+                        <td style="padding: 8px 12px; text-align: right; color: #e74c3c;">{{ row.failed }}</td>
+                        <td style="padding: 8px 12px; text-align: right;">{{ row.unique_users }}</td>
+                        <td style="padding: 8px 12px; min-width: 120px;">
+                            <div style="background: #3498db; height: 8px; border-radius: 4px;
+                                        width: {{ row.total }}px; max-width: 200px; opacity: 0.7;"></div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color: #999; text-align: center; padding: 20px;">No data for selected period.</p>
+        {% endif %}
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="margin: 0;">Top 10 active users</h4>
+                <div style="display: flex; gap: 8px;">
+                    <a href="{% url 'export_report' 'top_users' %}?format=json" class="btn btn-sm btn-secondary">JSON</a>
+                    <a href="{% url 'export_report' 'top_users' %}?format=csv" class="btn btn-sm btn-secondary">CSV</a>
+                </div>
+            </div>
+            {% if top_users %}
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                    <tr style="background: #f8f9fa;">
+                        <th style="padding: 6px 8px; text-align: left;">#</th>
+                        <th style="padding: 6px 8px; text-align: left;">User ID</th>
+                        <th style="padding: 6px 8px; text-align: right;">Actions</th>
+                        <th style="padding: 6px 8px; text-align: right;">Unique ops</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in top_users %}
+                    <tr style="border-bottom: 1px solid #f0f0f0;">
+                        <td style="padding: 6px 8px; color: #999;">{{ forloop.counter }}</td>
+                        <td style="padding: 6px 8px; font-family: monospace; font-size: 11px;">
+                            {{ u.user_id|truncatechars:16 }}
+                        </td>
+                        <td style="padding: 6px 8px; text-align: right; font-weight: 500;">{{ u.total }}</td>
+                        <td style="padding: 6px 8px; text-align: right; color: #666;">{{ u.unique_actions }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color: #999; text-align: center; padding: 20px;">No data.</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="margin: 0;">Operations distribution</h4>
+                <div style="display: flex; gap: 8px;">
+                    <a href="{% url 'export_report' 'operations' %}?format=json" class="btn btn-sm btn-secondary">JSON</a>
+                    <a href="{% url 'export_report' 'operations' %}?format=csv"  class="btn btn-sm btn-secondary">CSV</a>
+                </div>
+            </div>
+            {% if operations.summary %}
+            {% for op in operations.summary %}
+            <div style="margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="font-weight: 500;">{{ op.type }}</span>
+                    <span style="color: #666; font-size: 13px;">{{ op.count }} ({{ op.percentage }}%)</span>
+                </div>
+                <div style="background: #f0f0f0; border-radius: 4px; height: 10px;">
+                    <div style="background: #3498db; height: 10px; border-radius: 4px;
+                                width: {{ op.percentage }}%;"></div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color: #999; text-align: center; padding: 20px;">No data.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="margin: 0;">Time series (hourly, last 14 days)</h4>
+            <div style="display: flex; gap: 8px;">
+                <a href="{% url 'export_report' 'time_series' %}?format=json" class="btn btn-sm btn-secondary">JSON</a>
+                <a href="{% url 'export_report' 'time_series' %}?format=csv" class="btn btn-sm btn-secondary">CSV</a>
+            </div>
+        </div>
+        {% if time_series %}
+        <div style="overflow-x: auto;">
+            <div style="display: flex; gap: 2px; align-items: flex-end; height: 80px; min-width: 600px;">
+                {% for ts in time_series %}
+                <div title="{{ ts.label }}: {{ ts.count }}"
+                     style="flex: 1; min-width: 4px; background: #3498db; opacity: 0.7; border-radius: 2px 2px 0 0;
+                            height: {{ ts.count|default:1 }}px; max-height: 80px;"></div>
+                {% endfor %}
+            </div>
+            <p style="font-size: 11px; color: #999; margin-top: 4px; text-align: center;">
+                Each bar = 1 hour. Hover for details.
+            </p>
+        </div>
+        {% else %}
+        <p style="color: #999; text-align: center; padding: 20px;">No data.</p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

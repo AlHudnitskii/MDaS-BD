@@ -1,20 +1,16 @@
 import json
-import time
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .sql_manager import SQLManager
-from .repositories.product import ProductRepository
-from .repositories.statistics import StatisticsRepository
-
-from .jwt_service import (
+from .auth.jwt_service import (
     is_user_blacklisted, record_failed_login, clear_failed_attempts,
     create_access_token, create_refresh_token,
     verify_token, revoke_token,
     get_blacklist_ttl, get_token_from_request,
 )
+from .cache import CacheService, CacheKeys
 from .repositories.user import UserRepository
 
 
@@ -27,9 +23,7 @@ def api_login(request):
         password = data.get('password', '')
 
         if not username or not password:
-            return JsonResponse(
-                {'success': False, 'error': 'username and password required'}, status=400
-            )
+            return JsonResponse({'success': False, 'error': 'username and password required'}, status=400)
 
         if is_user_blacklisted(username):
             ttl = get_blacklist_ttl(username)
@@ -51,7 +45,7 @@ def api_login(request):
                 'expires_in': 3600,
             })
 
-        count = record_failed_login(username)
+        count     = record_failed_login(username)
         remaining = max(0, 3 - count)
         return JsonResponse({
             'success': False, 'error': 'Invalid credentials',
@@ -79,7 +73,6 @@ def api_token_verify(request):
     token = get_token_from_request(request)
     if not token:
         return JsonResponse({'valid': False, 'error': 'No token provided'}, status=401)
-
     payload = verify_token(token)
     if payload:
         return JsonResponse({
@@ -93,30 +86,21 @@ def api_token_verify(request):
 
 @require_http_methods(["GET"])
 def api_cache_stats(request):
-    from .cache_service import CacheService
-    stats = CacheService.get_stats()
-    return JsonResponse({'success': True, 'cache': stats})
+    return JsonResponse({'success': True, 'cache': CacheService.get_stats()})
 
 
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_cache_invalidate(request):
-    from .cache_service import CacheService, CacheKeys
     try:
         data = json.loads(request.body or '{}')
         prefix = data.get('prefix', '')
-
         if prefix == 'all':
             deleted = CacheService.invalidate_prefix(CacheKeys.PREFIX_ALL)
         elif prefix:
             deleted = CacheService.invalidate_prefix(prefix)
         else:
             return JsonResponse({'success': False, 'error': 'prefix required'}, status=400)
-
-        return JsonResponse({
-            'success': True,
-            'deleted_keys': deleted,
-            'prefix': prefix,
-        })
+        return JsonResponse({'success': True, 'deleted_keys': deleted, 'prefix': prefix})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)

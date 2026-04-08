@@ -11,6 +11,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'shop.apps.ShopConfig',
 ]
 
 MIDDLEWARE = [
@@ -21,9 +22,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
-    'shop.sql_middleware.SessionAuthMiddleware',
-    #'shop.jwt_middleware.JWTAuthMiddleware',
-    'shop.sql_middleware.CartMiddleware',
+    'shop.middleware.session.SessionAuthMiddleware',
+    'shop.auth.jwt_middleware.JWTAuthMiddleware',
+    'shop.middleware.session.CartMiddleware',
 ]
 
 ROOT_URLCONF = 'shop.urls'
@@ -76,7 +77,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 86400
 SESSION_SAVE_EVERY_REQUEST = True
-
 CART_SESSION_ID = 'cart'
 
 REDIS_HOST = 'localhost'
@@ -90,11 +90,13 @@ JWT_SECRET_KEY = 'blablablablabla-string'
 JWT_ALGORITHM = 'HS256'
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 60
 JWT_REFRESH_TOKEN_EXPIRE_DAYS = 7
-
 LOGIN_MAX_ATTEMPTS = 3
 LOGIN_BLOCK_DURATION = 600
 
-MONGODB_URI = 'mongodb://mongoadmin:mongopassword@localhost:27017/'
+
+MONGODB_URI = 'mongodb://127.0.0.1:27017/'
+MONGODB_USERNAME = None
+MONGODB_PASSWORD = None
 MONGODB_DATABASE = 'shop_logs'
 
 CACHE_TTL = {

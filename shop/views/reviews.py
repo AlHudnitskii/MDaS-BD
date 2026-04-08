@@ -4,7 +4,7 @@ from django.views.decorators.http import require_http_methods
 
 from ..repositories.review import ProductReviewRepository
 from ..repositories.product import ProductRepository
-from ..repositories.log import LogRepository
+from ..repositories.mongo_log import MongoLogRepository
 
 
 @require_http_methods(["POST"])
@@ -18,9 +18,9 @@ def create_review_view(request, product_id):
 
     try:
         ProductReviewRepository.create(product_id, user_id, rating, comment)
-        LogRepository.log_action(
+        MongoLogRepository.log_action(
             user_id, 'REVIEW_CREATED',
-            {'product_id': product_id, 'rating': rating}, 'SUCCESS'
+            {'product_id': product_id, 'rating': rating}, 'SUCCESS',
         )
         messages.success(request, 'Review submitted.')
     except Exception:
@@ -36,9 +36,7 @@ def user_reviews_view(request):
     user_id = request.session.get('user_id')
     if not user_id:
         return redirect('login')
-
-    reviews = ProductReviewRepository.get_by_user(user_id)
-    return render(request, 'users/reviews.html', {'reviews': reviews})
+    return render(request, 'users/reviews.html', {'reviews': ProductReviewRepository.get_by_user(user_id)})
 
 
 @require_http_methods(["POST"])
@@ -47,11 +45,8 @@ def update_review_view(request, review_id):
     if not user_id:
         return redirect('login')
 
-    rating = int(request.POST.get('rating', 5))
-    comment = request.POST.get('comment', '').strip()
-
-    ProductReviewRepository.update(review_id, rating, comment)
-    LogRepository.log_action(user_id, 'REVIEW_UPDATED', {'review_id': review_id}, 'SUCCESS')
+    ProductReviewRepository.update(review_id, int(request.POST.get('rating', 5)), request.POST.get('comment', '').strip())
+    MongoLogRepository.log_action(user_id, 'REVIEW_UPDATED', {'review_id': review_id}, 'SUCCESS')
     messages.success(request, 'Review updated.')
     return redirect('user_reviews')
 
@@ -63,6 +58,6 @@ def delete_review_view(request, review_id):
         return redirect('login')
 
     ProductReviewRepository.delete(review_id)
-    LogRepository.log_action(user_id, 'REVIEW_DELETED', {'review_id': review_id}, 'SUCCESS')
+    MongoLogRepository.log_action(user_id, 'REVIEW_DELETED', {'review_id': review_id}, 'SUCCESS')
     messages.success(request, 'Review deleted.')
     return redirect('user_reviews')

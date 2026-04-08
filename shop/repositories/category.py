@@ -1,8 +1,11 @@
-from ..sql_manager import SQLManager
-from ..cache_service import CacheService, CacheKeys
+from django.conf import settings
+
+from ..core.postgres import SQLManager
+from ..cache import CacheService, CacheKeys
 
 
 class CategoryRepository:
+
     @staticmethod
     def get_all() -> list[dict]:
         return CacheService.get_or_set(

@@ -38,6 +38,9 @@ urlpatterns = [
     path('admin/logs/', views.admin_logs_view, name='admin_logs'),
     path('admin/cleanup-logs/', views.cleanup_logs_view, name='cleanup_logs'),
 
+    path('admin/analytics/', views.analytics_view, name='analytics'),
+    path('admin/analytics/export/<str:report_type>/', views.export_report, name='export_report'),
+
     path('notes/', views.user_notes_view, name='user_notes'),
     path('notes/create/', views.create_note_view, name='create_note'),
     path('notes/update/<str:note_id>/', views.update_note_view, name='update_note'),

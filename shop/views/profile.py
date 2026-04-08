@@ -8,7 +8,7 @@ from django.conf import settings
 
 from ..repositories.user import UserRepository
 from ..repositories.order import OrderRepository
-from ..repositories.log import LogRepository
+from ..repositories.mongo_log import MongoLogRepository
 
 
 def profile_view(request):
@@ -64,10 +64,9 @@ def profile_view(request):
             UserRepository.update_profile(user_id, **update_kwargs)
             request.session['username'] = update_kwargs['username']
 
-            LogRepository.log_action(
+            MongoLogRepository.log_action(
                 user_id, 'PROFILE_UPDATE',
-                {'fields': list(update_kwargs.keys())},
-                'SUCCESS'
+                {'fields': list(update_kwargs.keys())}, 'SUCCESS',
             )
             messages.success(request, 'Profile updated successfully.')
             return redirect('profile')
@@ -75,5 +74,11 @@ def profile_view(request):
         return render(request, 'users/profile.html', {'user': user, 'orders': orders})
 
     except Exception as e:
+        MongoLogRepository.log_error(
+            error_type='PROFILE_VIEW_ERROR',
+            message=str(e),
+            user_id=user_id,
+            request_path='/profile/',
+        )
         messages.error(request, f'Error loading profile: {e}')
         return redirect('product_list')

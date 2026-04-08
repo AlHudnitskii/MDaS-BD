@@ -1,4 +1,4 @@
-from ..sql_manager import SQLManager
+from ..core.postgres import SQLManager
 
 
 class UserNoteRepository:

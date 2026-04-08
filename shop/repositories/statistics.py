@@ -1,6 +1,7 @@
 from django.conf import settings
-from ..sql_manager import SQLManager
-from ..cache_service import CacheService, CacheKeys
+
+from ..core.postgres import SQLManager
+from ..cache import CacheService, CacheKeys
 
 
 class StatisticsRepository:
